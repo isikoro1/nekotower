@@ -1,0 +1,73 @@
+# Trimmed Cat Mapping
+
+| Cat ID | Source file |
+| --- | --- |
+| CAT_01 | HKa9phCaMAATekm.jfif |
+| CAT_02 | HKa_cXOaMAA0WzZ.jfif |
+| CAT_03 | HKaqeDHaIAAaLa1.jfif |
+| CAT_04 | HKaZr4GaQAAwabU.jfif |
+| CAT_05 | HKb1XuyakAE63PT.jfif |
+| CAT_06 | HKb2-VLbgAA41C9.jfif |
+| CAT_07 | HKb9UgpbsAAzf_V.jfif |
+| CAT_08 | HKbBxJTbUAAby_D.jfif |
+| CAT_09 | HKbCTeSbgAA2A9T.jfif |
+| CAT_10 | HKbdWCybIAA3D2v.jfif |
+| CAT_11 | HKbh6V7bUAABLmc.jfif |
+| CAT_12 | HKbHXoEbkAApMWK.jfif |
+| CAT_13 | HKbJY-faMAA0oA7.jfif |
+| CAT_14 | HKbnrXca8AAjWXi.jfif |
+| CAT_15 | HKbqidAaEAADr4B.jfif |
+| CAT_16 | HKbtc8LaEAAl7Rk.jfif |
+| CAT_17 | HKcBuVQaYAAY1Tf.jfif |
+| CAT_18 | HKci7q9boAADfzE (1).jfif |
+| CAT_19 | HKci7q9boAADfzE.jfif |
+| CAT_20 | HKcIdHgbUAAWEH8.jfif |
+| CAT_21 | HKcIWRlaUAAihz4.jfif |
+| CAT_22 | HKcJvDqaoAADpUd.jfif |
+| CAT_23 | HKMdmMCbsAA8eFa.jfif |
+| CAT_24 | HKMXOlLaMAAL6BQ.jfif |
+| CAT_25 | HKMYqXCbMAALH6s.jfif |
+| CAT_26 | HKNyUUpaUAAQgSp.jfif |
+| CAT_27 | HKPi26-a4AAGat4.jfif |
+| CAT_28 | HKQ0y7dbsAAzRNF.jfif |
+| CAT_29 | HKQYkOtboAAh9Cf.jfif |
+| CAT_30 | HKRcXl0a4AA7pB_.jfif |
+| CAT_31 | HKRhopcbAAAWUED.jfif |
+| CAT_32 | HKRvwfOa0AAvtxY.jfif |
+| CAT_33 | HKSN9msaMAAoETD.jfif |
+| CAT_34 | HKV_qItakAAVMrV.jfif |
+| CAT_35 | HKVsoWlaAAAcTdt.jfif |
+| CAT_36 | HKW1W4caIAE2Z-P (1).jfif |
+| CAT_37 | HKW1W4caIAE2Z-P.jfif |
+| CAT_38 | HKWgn3fagAAN1cz.jfif |
+| CAT_39 | HKX0o90bMAAbCyv.jfif |
+| CAT_40 | HKX2c-zboAANNBv.jfif |
+| CAT_41 | HKX2XgKaEAAq8dS.jfif |
+| CAT_42 | HKX6HOgaYAAYTyd.jfif |
+| CAT_43 | HKX9kuta8AAQFhK.jfif |
+| CAT_44 | HKXBYodbwAAzkjl.jfif |
+| CAT_45 | HKXHGxIaQAE0Cnl.jfif |
+| CAT_46 | HKXHnQObUAASq6R.jfif |
+| CAT_47 | HKXInJyb0AAHzTd.jfif |
+| CAT_48 | HKXjHH3bkAAyxay.jfif |
+| CAT_49 | HKXNZe-aMAAgFVT.jfif |
+| CAT_50 | HKXSgaabcAAe4z_.jfif |
+| CAT_51 | HKXTkGxaoAAP91J.jfif |
+| CAT_52 | HKXTZ3fagAAU7ix (1).jfif |
+| CAT_53 | HKXTZ3fagAAU7ix.jfif |
+| CAT_54 | HKXu9_Ta4AAgeKU.jfif |
+| CAT_55 | HKXw3JGaIAAgf7T.jfif |
+| CAT_56 | HKXWMnIbwAAX4E0.jfif |
+| CAT_57 | HKXxDA0a0AAgrzq.jfif |
+| CAT_58 | HKYBu12bcAAfKUc.jfif |
+| CAT_59 | HKYG-wSa0AATPON.jfif |
+| CAT_60 | HKYKOK5aMAA4Xvx.jfif |
+| CAT_61 | HKYMbuPaoAAleyz.jfif |
+| CAT_62 | HKYOxKZbMAEOqNL.jfif |
+| CAT_63 | HKYvA-IboAAcj3g.jfif |
+| CAT_64 | HKYVmElaoAAtnBD.jfif |
+| CAT_65 | HKYVmEoa4AArl0k.jfif |
+| CAT_66 | HKZ-R8xaYAEFngq.jfif |
+| CAT_67 | HKZ-R8zacAA5ulg.jfif |
+| CAT_68 | HKZ7LztbsAAOGzr.jfif |
+| CAT_69 | HKZD5sDW4AAMW5k.jfif |
