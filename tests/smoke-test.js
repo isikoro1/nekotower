@@ -159,6 +159,21 @@ setTimeout(() => {
   if (context.__test.state.active.body.plugin.hitType !== "contour") {
     throw new Error(`active cat is not using contour hitbox; hitType=${context.__test.state.active.body.plugin.hitType}`);
   }
+  context.__test.state.keys.add("D");
+  advance(20);
+  const heldSpin = context.__test.state.spinVelocity;
+  context.__test.state.keys.delete("D");
+  const angleBeforeRelease = context.__test.state.active.body.angle;
+  advance(12);
+  const angleAfterRelease = context.__test.state.active.body.angle;
+  if (heldSpin <= 0.005) throw new Error(`spin did not accelerate; spin=${heldSpin}`);
+  if (angleAfterRelease <= angleBeforeRelease) throw new Error("spin did not continue after release");
+  context.__test.dropActive();
+  advance(1);
+  if (context.__test.state.cats[0].body.angularVelocity <= 0.004) {
+    throw new Error(`drop did not inherit spin; angular=${context.__test.state.cats[0].body.angularVelocity}`);
+  }
+  context.__test.reset("bowl");
   const initialBodies = Matter.Composite.allBodies(context.__test.physics.engine.world);
   const bodySummary = initialBodies.map((body) => ({
     label: body.label,

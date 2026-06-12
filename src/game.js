@@ -22,6 +22,9 @@ const HIT_SCALE = 0.9;
 const CAT_SCALE = 1.3;
 const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
+const ROT_ACCEL = 0.0012;
+const ROT_MAX = 0.075;
+const ROT_IDLE_DECAY = 0.93;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -53,6 +56,8 @@ const state = {
   cameraY: 0,
   targetCameraY: 0,
   pointerX: null,
+  spinVelocity: 0,
+  spinInput: 0,
   keys: new Set(),
 };
 
@@ -321,14 +326,13 @@ function stageBodies(stage) {
 
   if (stage === "tower") {
     return [
-      makeWall(450, 1040, 430, 34, 0),
+      makeWall(450, 1040, 516, 34, 0),
       makeWall(450, 840, 34, 390, 0),
-      makeWall(340, 895, 280, 30, 0.04),
+      wallFromSegment({ x: 220, y: 840 }, { x: 260, y: 910 }, 24),
+      wallFromSegment({ x: 260, y: 910 }, { x: 420, y: 910 }, 24),
+      wallFromSegment({ x: 420, y: 910 }, { x: 460, y: 840 }, 24),
       makeWall(560, 750, 270, 30, -0.04),
-      makeWall(385, 585, 230, 30, 0.03),
-      wallFromSegment({ x: 610, y: 590 }, { x: 650, y: 660 }, 24),
-      wallFromSegment({ x: 650, y: 660 }, { x: 760, y: 660 }, 24),
-      wallFromSegment({ x: 760, y: 660 }, { x: 800, y: 590 }, 24),
+      makeWall(392, 585, 116, 30, 0.03),
     ];
   }
 
@@ -386,6 +390,8 @@ function reset(stage = state.stage) {
   state.lastDropAt = 0;
   state.cameraY = 0;
   state.targetCameraY = 0;
+  state.spinVelocity = 0;
+  state.spinInput = 0;
   titleScreen.hidden = true;
   gameOverScreen.hidden = true;
   spawn();
@@ -410,11 +416,14 @@ function dropActive() {
   Body.setStatic(body, false);
   Sleeping.set(body, false);
   Body.setVelocity(body, { x: 0, y: 1.1 });
-  Body.setAngularVelocity(body, rand(-0.018, 0.018));
+  const spin = Math.abs(state.spinVelocity) > 0.004 ? state.spinVelocity : rand(-0.012, 0.012);
+  Body.setAngularVelocity(body, spin);
   Body.setPosition(body, { x: body.position.x, y: body.position.y + 1 });
   state.active.dropped = true;
   state.active.stableFrames = 0;
   state.aiming = false;
+  state.spinInput = 0;
+  state.spinVelocity = 0;
   state.lastDropAt = performance.now();
   updateHud();
 }
@@ -459,8 +468,15 @@ function aimActive(dt) {
   const rot = (state.keys.has("d") || state.keys.has("D") ? 1 : 0) - (state.keys.has("a") || state.keys.has("A") ? 1 : 0);
   const x = clamp(body.position.x + move * 420 * dt, 205, 695);
   const targetX = state.pointerX !== null ? clamp(state.pointerX, 205, 695) : x;
+  const input = state.spinInput || rot;
+  if (input) {
+    state.spinVelocity = clamp(state.spinVelocity + input * ROT_ACCEL, -ROT_MAX, ROT_MAX);
+  } else {
+    state.spinVelocity *= ROT_IDLE_DECAY;
+    if (Math.abs(state.spinVelocity) < 0.0007) state.spinVelocity = 0;
+  }
   Body.setPosition(body, { x: targetX, y: state.targetCameraY + 150 });
-  Body.setAngle(body, body.angle + rot * 2.7 * dt);
+  Body.setAngle(body, body.angle + state.spinVelocity);
 }
 
 function updateStability() {
@@ -535,24 +551,22 @@ function drawStage() {
     ctx.strokeStyle = "#8b6b4f";
     ctx.lineWidth = 30;
     ctx.beginPath();
-    ctx.moveTo(235, 1040);
-    ctx.lineTo(665, 1040);
+    ctx.moveTo(192, 1040);
+    ctx.lineTo(708, 1040);
     ctx.moveTo(450, 1038);
     ctx.lineTo(450, 650);
-    ctx.moveTo(203, 889);
-    ctx.lineTo(477, 900);
     ctx.moveTo(426, 755);
     ctx.lineTo(694, 744);
-    ctx.moveTo(272, 581);
-    ctx.lineTo(498, 588);
+    ctx.moveTo(334, 583);
+    ctx.lineTo(450, 587);
     ctx.stroke();
     ctx.strokeStyle = "#9c7655";
     ctx.lineWidth = 24;
     ctx.beginPath();
-    ctx.moveTo(610, 590);
-    ctx.lineTo(650, 660);
-    ctx.lineTo(760, 660);
-    ctx.lineTo(800, 590);
+    ctx.moveTo(220, 840);
+    ctx.lineTo(260, 910);
+    ctx.lineTo(420, 910);
+    ctx.lineTo(460, 840);
     ctx.stroke();
   } else if (state.stage === "bottle") {
     ctx.strokeStyle = "rgba(82, 143, 164, 0.66)";
@@ -739,29 +753,36 @@ canvas.addEventListener("pointerleave", () => {
   state.pointerX = null;
 });
 
-function holdButton(button, onFrame) {
-  let frame = 0;
+function holdButton(button, onStart, onStop) {
   const start = (event) => {
     event.preventDefault();
-    const tick = () => {
-      onFrame();
-      frame = requestAnimationFrame(tick);
-    };
-    tick();
+    onStart();
   };
-  const stop = () => cancelAnimationFrame(frame);
+  const stop = () => onStop();
   button.addEventListener("pointerdown", start);
   button.addEventListener("pointerup", stop);
   button.addEventListener("pointercancel", stop);
   button.addEventListener("pointerleave", stop);
 }
 
-holdButton(document.querySelector("#rotLeftBtn"), () => {
-  if (state.aiming && state.active) Body.rotate(state.active.body, -0.045);
-});
-holdButton(document.querySelector("#rotRightBtn"), () => {
-  if (state.aiming && state.active) Body.rotate(state.active.body, 0.045);
-});
+holdButton(
+  document.querySelector("#rotLeftBtn"),
+  () => {
+    if (state.aiming && state.active) state.spinInput = -1;
+  },
+  () => {
+    if (state.spinInput < 0) state.spinInput = 0;
+  },
+);
+holdButton(
+  document.querySelector("#rotRightBtn"),
+  () => {
+    if (state.aiming && state.active) state.spinInput = 1;
+  },
+  () => {
+    if (state.spinInput > 0) state.spinInput = 0;
+  },
+);
 document.querySelector("#dropBtn").addEventListener("click", dropActive);
 
 stageBowlBtn.addEventListener("click", () => reset("bowl"));
