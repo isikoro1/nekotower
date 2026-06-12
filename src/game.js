@@ -400,7 +400,7 @@ function lose(cat) {
   const message =
     state.mode === "solo"
       ? `終了。${state.score}匹入りました。Retryでもう一回。`
-      : `Player ${state.player} の負け。${cat?.name || "猫"} が器から出ました。`;
+      : `Player ${state.player} の負け。器から猫が出ました。`;
   gameOverMessageEl.textContent = message;
   gameOverScreen.hidden = false;
   updateHud();
