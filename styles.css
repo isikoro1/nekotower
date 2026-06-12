@@ -87,6 +87,7 @@ h1 {
 .game-shell {
   display: grid;
   gap: 10px;
+  justify-items: center;
   min-width: 0;
   position: relative;
 }
@@ -98,10 +99,10 @@ canvas {
   border-radius: 8px;
   box-shadow: 0 16px 42px rgba(55, 94, 112, 0.18);
   display: block;
-  max-height: calc(100vh - 32px);
   max-width: 100%;
+  height: auto;
   touch-action: none;
-  width: 100%;
+  width: min(100%, calc((100vh - 32px) * 0.75));
 }
 
 .game-hud {
@@ -188,7 +189,7 @@ canvas {
 
   canvas {
     border-radius: 0;
-    max-height: none;
+    width: 100%;
   }
 
   .game-hud {
