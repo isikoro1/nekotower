@@ -58,8 +58,10 @@ h1 {
   display: grid;
   gap: 10px;
   justify-items: center;
+  max-width: 100%;
   min-width: 0;
   position: relative;
+  width: min(100%, calc((100vh - 32px) * 0.75));
 }
 
 canvas {
@@ -72,7 +74,7 @@ canvas {
   max-width: 100%;
   height: auto;
   touch-action: none;
-  width: min(100%, calc((100vh - 32px) * 0.75));
+  width: 100%;
 }
 
 .game-hud {
@@ -83,11 +85,11 @@ canvas {
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  left: 12px;
-  padding: 8px 12px;
+  left: 14px;
+  padding: 7px 10px;
   position: absolute;
-  right: 12px;
-  top: 12px;
+  right: 14px;
+  top: 14px;
   z-index: 2;
 }
 
@@ -132,7 +134,8 @@ canvas {
 .touch-controls {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
 }
 
 .touch-controls button {
@@ -144,16 +147,20 @@ canvas {
     padding: 0;
   }
 
-  canvas {
-    border-radius: 0;
+  .game-shell {
+    gap: 6px;
     width: 100%;
   }
 
+  canvas {
+    border-radius: 0;
+  }
+
   .game-hud {
-    font-size: 14px;
-    left: 8px;
-    right: 8px;
-    top: 8px;
+    font-size: 13px;
+    left: 10px;
+    right: 10px;
+    top: 10px;
   }
 
   .touch-controls {

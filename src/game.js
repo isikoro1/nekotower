@@ -610,13 +610,22 @@ window.addEventListener("keyup", (event) => {
   state.keys.delete(event.key);
 });
 
+let lastPointerType = "mouse";
+
 canvas.addEventListener("pointermove", (event) => {
+  const rect = canvas.getBoundingClientRect();
+  state.pointerX = ((event.clientX - rect.left) / rect.width) * W;
+});
+
+canvas.addEventListener("pointerdown", (event) => {
+  lastPointerType = event.pointerType || "mouse";
   const rect = canvas.getBoundingClientRect();
   state.pointerX = ((event.clientX - rect.left) / rect.width) * W;
 });
 
 canvas.addEventListener("click", (event) => {
   if (event.button !== 0) return;
+  if (lastPointerType !== "mouse") return;
   dropActive();
 });
 
@@ -652,18 +661,6 @@ function holdButton(button, onFrame) {
   button.addEventListener("pointerleave", stop);
 }
 
-holdButton(document.querySelector("#leftBtn"), () => {
-  if (state.aiming && state.active) {
-    const pos = state.active.body.position;
-    Body.setPosition(state.active.body, { x: clamp(pos.x - 7, 205, 695), y: state.targetCameraY + 150 });
-  }
-});
-holdButton(document.querySelector("#rightBtn"), () => {
-  if (state.aiming && state.active) {
-    const pos = state.active.body.position;
-    Body.setPosition(state.active.body, { x: clamp(pos.x + 7, 205, 695), y: state.targetCameraY + 150 });
-  }
-});
 holdButton(document.querySelector("#rotLeftBtn"), () => {
   if (state.aiming && state.active) Body.rotate(state.active.body, -0.045);
 });
