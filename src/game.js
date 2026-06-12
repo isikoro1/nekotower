@@ -7,8 +7,10 @@ const hudTurnEl = document.querySelector("#hudTurn");
 const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
 const gameOverMessageEl = document.querySelector("#gameOverMessage");
-const titleSoloBtn = document.querySelector("#titleSoloBtn");
-const titleVersusBtn = document.querySelector("#titleVersusBtn");
+const stageBowlBtn = document.querySelector("#stageBowlBtn");
+const stagePlatformBtn = document.querySelector("#stagePlatformBtn");
+const stageTowerBtn = document.querySelector("#stageTowerBtn");
+const stageBottleBtn = document.querySelector("#stageBottleBtn");
 const retryBtn = document.querySelector("#retryBtn");
 const toTitleBtn = document.querySelector("#toTitleBtn");
 
@@ -25,11 +27,11 @@ if (window.decomp) {
   Common.setDecomp(window.decomp);
 }
 
-const bowl = {
-  leftTop: { x: 185, y: 850 },
-  rightTop: { x: 715, y: 850 },
-  leftBottom: { x: 275, y: 1065 },
-  rightBottom: { x: 625, y: 1065 },
+const STAGES = {
+  bowl: { label: "お椀", aimY: 850, failY: 1255 },
+  platform: { label: "平台", aimY: 900, failY: 1260 },
+  tower: { label: "タワー", aimY: 560, failY: 1260 },
+  bottle: { label: "猫瓶", aimY: 500, failY: 1260 },
 };
 
 const physics = {
@@ -44,9 +46,8 @@ const state = {
   aiming: true,
   score: 0,
   best: Number(localStorage.getItem("cat-bowl-best") || 0),
-  mode: "solo",
+  stage: "bowl",
   screen: "title",
-  player: 1,
   gameOver: false,
   lastDropAt: 0,
   cameraY: 0,
@@ -304,6 +305,38 @@ function wallFromSegment(a, b, thickness) {
   return makeWall(mid.x, mid.y, length, thickness, angle);
 }
 
+function stageBodies(stage) {
+  if (stage === "platform") {
+    return [makeWall(450, 930, 500, 34, 0)];
+  }
+
+  if (stage === "tower") {
+    return [
+      makeWall(450, 1040, 430, 34, 0),
+      makeWall(450, 840, 34, 390, 0),
+      makeWall(340, 905, 280, 30, -0.08),
+      makeWall(560, 750, 270, 30, 0.08),
+      makeWall(385, 585, 230, 30, -0.05),
+    ];
+  }
+
+  if (stage === "bottle") {
+    return [
+      wallFromSegment({ x: 310, y: 1050 }, { x: 252, y: 710 }, 34),
+      wallFromSegment({ x: 590, y: 1050 }, { x: 648, y: 710 }, 34),
+      wallFromSegment({ x: 310, y: 1050 }, { x: 590, y: 1050 }, 36),
+      wallFromSegment({ x: 252, y: 710 }, { x: 368, y: 505 }, 30),
+      wallFromSegment({ x: 648, y: 710 }, { x: 532, y: 505 }, 30),
+    ];
+  }
+
+  return [
+    wallFromSegment({ x: 185, y: 850 }, { x: 275, y: 1065 }, 34),
+    wallFromSegment({ x: 275, y: 1065 }, { x: 625, y: 1065 }, 38),
+    wallFromSegment({ x: 625, y: 1065 }, { x: 715, y: 850 }, 34),
+  ];
+}
+
 function buildWorld() {
   physics.engine = Engine.create({
     gravity: { x: 0, y: 0.8, scale: 0.001 },
@@ -315,11 +348,7 @@ function buildWorld() {
   physics.engine.timing.timeScale = 1;
   physics.accumulator = 0;
 
-  Composite.add(physics.engine.world, [
-    wallFromSegment(bowl.leftTop, bowl.leftBottom, 34),
-    wallFromSegment(bowl.leftBottom, bowl.rightBottom, 38),
-    wallFromSegment(bowl.rightBottom, bowl.rightTop, 34),
-  ]);
+  Composite.add(physics.engine.world, stageBodies(state.stage));
 
   Events.on(physics.engine, "collisionStart", (event) => {
     for (const pair of event.pairs) {
@@ -331,16 +360,15 @@ function buildWorld() {
   });
 }
 
-function reset(mode = state.mode) {
+function reset(stage = state.stage) {
   if (physics.engine) Events.off(physics.engine);
+  state.stage = stage;
   buildWorld();
   state.cats = [];
   state.active = null;
   state.aiming = true;
   state.score = 0;
-  state.mode = mode;
   state.screen = "playing";
-  state.player = 1;
   state.gameOver = false;
   state.lastDropAt = 0;
   state.cameraY = 0;
@@ -360,7 +388,7 @@ function spawn() {
 function updateHud() {
   hudScoreEl.textContent = state.score;
   hudBestEl.textContent = state.best;
-  hudTurnEl.textContent = state.mode === "solo" ? "Solo" : `P${state.player}`;
+  hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
 }
 
 function dropActive() {
@@ -388,7 +416,6 @@ function nextTurn() {
       localStorage.setItem("cat-bowl-best", String(state.best));
     }
   }
-  if (state.mode === "versus") state.player = state.player === 1 ? 2 : 1;
   spawn();
   updateHud();
 }
@@ -397,10 +424,7 @@ function lose(cat) {
   state.gameOver = true;
   state.aiming = false;
   state.screen = "gameover";
-  const message =
-    state.mode === "solo"
-      ? `終了。${state.score}匹入りました。Retryでもう一回。`
-      : `Player ${state.player} の負け。器から猫が出ました。`;
+  const message = `終了。${state.score}匹入りました。Retryでもう一回。`;
   gameOverMessageEl.textContent = message;
   gameOverScreen.hidden = false;
   updateHud();
@@ -468,7 +492,7 @@ function step(dt) {
 
   for (const cat of state.cats) {
     const pos = cat.body.position;
-    if (cat.dropped && (pos.y > bowl.leftBottom.y + 190 || pos.x < -190 || pos.x > W + 190)) {
+    if (cat.dropped && (pos.y > STAGES[state.stage].failY || pos.x < -190 || pos.x > W + 190)) {
       lose(cat);
       return;
     }
@@ -482,27 +506,73 @@ function step(dt) {
   }
 }
 
-function drawBowl() {
+function drawStage() {
   ctx.save();
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.strokeStyle = "#5a8fa6";
   ctx.lineWidth = 28;
-  ctx.beginPath();
-  ctx.moveTo(bowl.leftTop.x, bowl.leftTop.y);
-  ctx.lineTo(bowl.leftBottom.x, bowl.leftBottom.y);
-  ctx.lineTo(bowl.rightBottom.x, bowl.rightBottom.y);
-  ctx.lineTo(bowl.rightTop.x, bowl.rightTop.y);
-  ctx.stroke();
 
-  ctx.strokeStyle = "rgba(255,255,255,0.72)";
-  ctx.lineWidth = 10;
-  ctx.beginPath();
-  ctx.moveTo(bowl.leftTop.x + 18, bowl.leftTop.y + 22);
-  ctx.lineTo(bowl.leftBottom.x + 14, bowl.leftBottom.y - 22);
-  ctx.lineTo(bowl.rightBottom.x - 14, bowl.rightBottom.y - 22);
-  ctx.lineTo(bowl.rightTop.x - 18, bowl.rightTop.y + 22);
-  ctx.stroke();
+  if (state.stage === "platform") {
+    ctx.beginPath();
+    ctx.moveTo(200, 930);
+    ctx.lineTo(700, 930);
+    ctx.stroke();
+  } else if (state.stage === "tower") {
+    ctx.strokeStyle = "#8b6b4f";
+    ctx.lineWidth = 30;
+    ctx.beginPath();
+    ctx.moveTo(235, 1040);
+    ctx.lineTo(665, 1040);
+    ctx.moveTo(450, 1038);
+    ctx.lineTo(450, 650);
+    ctx.moveTo(205, 905);
+    ctx.lineTo(475, 883);
+    ctx.moveTo(428, 739);
+    ctx.lineTo(692, 760);
+    ctx.moveTo(272, 591);
+    ctx.lineTo(498, 580);
+    ctx.stroke();
+  } else if (state.stage === "bottle") {
+    ctx.strokeStyle = "rgba(82, 143, 164, 0.66)";
+    ctx.lineWidth = 26;
+    ctx.beginPath();
+    ctx.moveTo(310, 1050);
+    ctx.lineTo(252, 710);
+    ctx.lineTo(368, 505);
+    ctx.moveTo(590, 1050);
+    ctx.lineTo(648, 710);
+    ctx.lineTo(532, 505);
+    ctx.moveTo(310, 1050);
+    ctx.lineTo(590, 1050);
+    ctx.stroke();
+    ctx.fillStyle = "rgba(180, 230, 245, 0.18)";
+    ctx.beginPath();
+    ctx.moveTo(315, 1040);
+    ctx.lineTo(270, 720);
+    ctx.lineTo(383, 535);
+    ctx.lineTo(517, 535);
+    ctx.lineTo(630, 720);
+    ctx.lineTo(585, 1040);
+    ctx.closePath();
+    ctx.fill();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(185, 850);
+    ctx.lineTo(275, 1065);
+    ctx.lineTo(625, 1065);
+    ctx.lineTo(715, 850);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255,255,255,0.72)";
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.moveTo(203, 872);
+    ctx.lineTo(289, 1043);
+    ctx.lineTo(611, 1043);
+    ctx.lineTo(697, 872);
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
@@ -550,7 +620,7 @@ function drawAimGuide() {
   ctx.beginPath();
   const x = state.active.body.position.x;
   ctx.moveTo(x, 210);
-  ctx.lineTo(x, Math.min(H - 90, bowl.leftBottom.y - state.cameraY - 70));
+  ctx.lineTo(x, Math.min(H - 90, STAGES[state.stage].aimY - state.cameraY - 70));
   ctx.stroke();
   ctx.restore();
 }
@@ -561,9 +631,13 @@ function render() {
   ctx.fillStyle = "rgba(255,255,255,0.45)";
   ctx.fillRect(0, 0, W, H);
   ctx.fillStyle = "#d7f0f8";
-  ctx.beginPath();
-  ctx.arc(450, 1150, 620, Math.PI, 0);
-  ctx.fill();
+  if (state.stage === "bowl") {
+    ctx.beginPath();
+    ctx.arc(450, 1150, 620, Math.PI, 0);
+    ctx.fill();
+  } else {
+    ctx.fillRect(0, 915, W, 285);
+  }
 
   drawAimGuide();
   ctx.save();
@@ -572,7 +646,7 @@ function render() {
     drawCat(cat);
     if (location.search.includes("debugHit=1")) drawHitShape(cat);
   }
-  drawBowl();
+  drawStage();
   ctx.restore();
 
   if (state.gameOver) {
@@ -669,9 +743,11 @@ holdButton(document.querySelector("#rotRightBtn"), () => {
 });
 document.querySelector("#dropBtn").addEventListener("click", dropActive);
 
-titleSoloBtn.addEventListener("click", () => reset("solo"));
-titleVersusBtn.addEventListener("click", () => reset("versus"));
-retryBtn.addEventListener("click", () => reset(state.mode));
+stageBowlBtn.addEventListener("click", () => reset("bowl"));
+stagePlatformBtn.addEventListener("click", () => reset("platform"));
+stageTowerBtn.addEventListener("click", () => reset("tower"));
+stageBottleBtn.addEventListener("click", () => reset("bottle"));
+retryBtn.addEventListener("click", () => reset(state.stage));
 toTitleBtn.addEventListener("click", showTitle);
 
 loadImages().then((images) => {
@@ -682,7 +758,7 @@ loadImages().then((images) => {
     gameOverScreen.hidden = false;
     return;
   }
-  reset("solo");
+  reset("bowl");
   showTitle();
   requestAnimationFrame(loop);
 });

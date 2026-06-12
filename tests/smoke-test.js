@@ -141,11 +141,14 @@ function dropAndSettle() {
 
 setTimeout(() => {
   if (!context.__test) throw new Error("game did not initialize");
-  context.__test.reset("solo");
-  if (!context.__test.state.active) throw new Error("no active cat after init");
-  if (context.__test.state.active.body.parts.length < 3) {
-    throw new Error(`active cat is not using compound hitbox; parts=${context.__test.state.active.body.parts.length}`);
+  for (const stage of ["bowl", "platform", "tower", "bottle"]) {
+    context.__test.reset(stage);
+    const staticBodies = Matter.Composite.allBodies(context.__test.physics.engine.world).filter((body) => body.isStatic);
+    if (context.__test.state.stage !== stage) throw new Error(`stage did not switch to ${stage}`);
+    if (staticBodies.length < 2) throw new Error(`stage ${stage} did not create enough static bodies`);
   }
+  context.__test.reset("bowl");
+  if (!context.__test.state.active) throw new Error("no active cat after init");
   if (context.__test.state.active.body.plugin.hitType !== "contour") {
     throw new Error(`active cat is not using contour hitbox; hitType=${context.__test.state.active.body.plugin.hitType}`);
   }
