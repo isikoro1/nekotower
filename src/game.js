@@ -23,8 +23,8 @@ const CAT_SCALE = 1.3;
 const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
 const ROT_ACCEL = 0.0006;
-const ROT_MAX = 0.075;
-const ROT_IDLE_DECAY = 0.965;
+const ROT_MAX = 0.15;
+const ROT_IDLE_DECAY = 0.982;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
