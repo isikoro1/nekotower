@@ -24,7 +24,8 @@ const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
 const ROT_ACCEL = 0.0003;
 const ROT_MAX = 0.15;
-const ROT_IDLE_DECAY = 0.991;
+const ROT_IDLE_DECAY = 0.996;
+const DROP_SPIN_MULTIPLIER = 1.8;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -416,7 +417,7 @@ function dropActive() {
   Body.setStatic(body, false);
   Sleeping.set(body, false);
   Body.setVelocity(body, { x: 0, y: 1.1 });
-  const spin = Math.abs(state.spinVelocity) > 0.004 ? state.spinVelocity : rand(-0.012, 0.012);
+  const spin = Math.abs(state.spinVelocity) > 0.004 ? state.spinVelocity * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
   Body.setAngularVelocity(body, spin);
   Body.setPosition(body, { x: body.position.x, y: body.position.y + 1 });
   state.active.dropped = true;
