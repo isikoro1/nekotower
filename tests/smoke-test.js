@@ -169,9 +169,12 @@ setTimeout(() => {
   if (heldSpin <= 0.005) throw new Error(`spin did not accelerate; spin=${heldSpin}`);
   if (angleAfterRelease <= angleBeforeRelease) throw new Error("spin did not continue after release");
   context.__test.dropActive();
-  advance(1);
+  advance(20);
   if (context.__test.state.cats[0].body.angularVelocity <= 0.004) {
     throw new Error(`drop did not inherit spin; angular=${context.__test.state.cats[0].body.angularVelocity}`);
+  }
+  if (context.__test.state.cats[0].body.velocity.x <= 0.02) {
+    throw new Error(`spin curve did not add rightward velocity; vx=${context.__test.state.cats[0].body.velocity.x}`);
   }
   context.__test.reset("bowl");
   const initialBodies = Matter.Composite.allBodies(context.__test.physics.engine.world);

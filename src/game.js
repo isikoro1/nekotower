@@ -26,6 +26,9 @@ const ROT_ACCEL = 0.0003;
 const ROT_MAX = 0.15;
 const ROT_IDLE_DECAY = 0.996;
 const DROP_SPIN_MULTIPLIER = 1.8;
+const SPIN_CURVE_FORCE = 0.09;
+const SPIN_CURVE_MAX = 0.018;
+const SPIN_CURVE_MIN = 0.003;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -480,6 +483,20 @@ function aimActive(dt) {
   Body.setAngle(body, body.angle + state.spinVelocity);
 }
 
+function applySpinCurveForces() {
+  for (const cat of state.cats) {
+    if (!cat.dropped || cat.body.isStatic || cat.body.isSleeping) continue;
+    const spin = cat.body.angularVelocity;
+    if (Math.abs(spin) < SPIN_CURVE_MIN) continue;
+    const falling = Math.max(0.3, Math.min(4, cat.body.velocity.y + 0.8));
+    const curveVelocity = clamp(spin * falling * SPIN_CURVE_FORCE, -SPIN_CURVE_MAX, SPIN_CURVE_MAX);
+    Body.setVelocity(cat.body, {
+      x: cat.body.velocity.x + curveVelocity,
+      y: cat.body.velocity.y,
+    });
+  }
+}
+
 function updateStability() {
   for (const cat of state.cats) {
     if (!cat.dropped) continue;
@@ -514,6 +531,7 @@ function step(dt) {
   const fixed = 1000 / 120;
   physics.accumulator = Math.min(physics.accumulator + dt * 1000, 80);
   while (physics.accumulator >= fixed) {
+    applySpinCurveForces();
     Engine.update(physics.engine, fixed);
     physics.accumulator -= fixed;
   }
