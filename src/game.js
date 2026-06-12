@@ -22,9 +22,9 @@ const HIT_SCALE = 0.9;
 const CAT_SCALE = 1.3;
 const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
-const ROT_ACCEL = 0.0012;
+const ROT_ACCEL = 0.0006;
 const ROT_MAX = 0.075;
-const ROT_IDLE_DECAY = 0.93;
+const ROT_IDLE_DECAY = 0.965;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
