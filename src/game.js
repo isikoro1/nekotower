@@ -1,16 +1,9 @@
 ﻿const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
 
-const scoreEl = document.querySelector("#score");
-const bestEl = document.querySelector("#best");
-const statusEl = document.querySelector("#status");
-const turnLabelEl = document.querySelector("#turnLabel");
 const hudScoreEl = document.querySelector("#hudScore");
 const hudBestEl = document.querySelector("#hudBest");
 const hudTurnEl = document.querySelector("#hudTurn");
-const restartBtn = document.querySelector("#restartBtn");
-const soloBtn = document.querySelector("#soloBtn");
-const versusBtn = document.querySelector("#versusBtn");
 const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
 const gameOverMessageEl = document.querySelector("#gameOverMessage");
@@ -24,6 +17,9 @@ const { Bodies, Body, Common, Composite, Engine, Events, Sleeping, Vertices, Vec
 const W = canvas.width;
 const H = canvas.height;
 const HIT_SCALE = 0.9;
+const CAT_SCALE = 1.3;
+const SMALL_CAT_SCALE = 1.5;
+const SMALL_CONTOUR_AREA = 0.13;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -59,7 +55,6 @@ const state = {
   keys: new Set(),
 };
 
-bestEl.textContent = state.best;
 hudBestEl.textContent = state.best;
 
 function rand(min, max) {
@@ -122,6 +117,14 @@ function verticesForCat(name, drawW, drawH) {
     x: x * drawW,
     y: y * drawH,
   }));
+}
+
+function contourBoundsArea(name) {
+  const vertices = window.CAT_CONTOURS?.[name]?.vertices;
+  if (!vertices?.length) return 0;
+  const xs = vertices.map(([x]) => x);
+  const ys = vertices.map(([, y]) => y);
+  return (Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys));
 }
 
 function makeCatBody(cat) {
@@ -252,8 +255,12 @@ function makeCat() {
   const asset = state.loadedCats[Math.floor(Math.random() * state.loadedCats.length)];
   const targetArea = rand(36000, 43000);
   const aspect = clamp(asset.img.naturalWidth / asset.img.naturalHeight, 0.62, 1.65);
-  const drawW = Math.sqrt(targetArea * aspect);
-  const drawH = targetArea / drawW;
+  const contourArea = contourBoundsArea(asset.name);
+  const sizeScale = contourArea > 0 && contourArea < SMALL_CONTOUR_AREA ? SMALL_CAT_SCALE : CAT_SCALE;
+  const baseW = Math.sqrt(targetArea * aspect);
+  const baseH = targetArea / baseW;
+  const drawW = baseW * sizeScale;
+  const drawH = baseH * sizeScale;
   const cat = {
     img: asset.img,
     name: asset.name,
@@ -341,7 +348,7 @@ function reset(mode = state.mode) {
   titleScreen.hidden = true;
   gameOverScreen.hidden = true;
   spawn();
-  updateHud("左右キー/ボタンで移動、A/Dまたは回転ボタンで回転。Space/Drop/左クリックで落とす。");
+  updateHud();
 }
 
 function spawn() {
@@ -350,14 +357,10 @@ function spawn() {
   state.aiming = true;
 }
 
-function updateHud(message) {
-  scoreEl.textContent = state.score;
-  bestEl.textContent = state.best;
+function updateHud() {
   hudScoreEl.textContent = state.score;
   hudBestEl.textContent = state.best;
-  turnLabelEl.textContent = state.mode === "solo" ? "Solo" : `Player ${state.player}`;
   hudTurnEl.textContent = state.mode === "solo" ? "Solo" : `P${state.player}`;
-  statusEl.textContent = message;
 }
 
 function dropActive() {
@@ -372,7 +375,7 @@ function dropActive() {
   state.active.stableFrames = 0;
   state.aiming = false;
   state.lastDropAt = performance.now();
-  updateHud("落下中。止まったら次の猫が来ます。");
+  updateHud();
 }
 
 function nextTurn() {
@@ -387,7 +390,7 @@ function nextTurn() {
   }
   if (state.mode === "versus") state.player = state.player === 1 ? 2 : 1;
   spawn();
-  updateHud(state.mode === "solo" ? "まだ入る。次の猫を落とす。" : `Player ${state.player} の番。落としたら負け。`);
+  updateHud();
 }
 
 function lose(cat) {
@@ -400,7 +403,7 @@ function lose(cat) {
       : `Player ${state.player} の負け。${cat?.name || "猫"} が器から出ました。`;
   gameOverMessageEl.textContent = message;
   gameOverScreen.hidden = false;
-  updateHud(message);
+  updateHud();
 }
 
 function showTitle() {
@@ -409,7 +412,7 @@ function showTitle() {
   state.aiming = false;
   titleScreen.hidden = false;
   gameOverScreen.hidden = true;
-  updateHud("タイトルでモードを選んでください。");
+  updateHud();
 }
 
 function aimActive(dt) {
@@ -669,9 +672,6 @@ holdButton(document.querySelector("#rotRightBtn"), () => {
 });
 document.querySelector("#dropBtn").addEventListener("click", dropActive);
 
-restartBtn.addEventListener("click", () => reset());
-soloBtn.addEventListener("click", () => reset("solo"));
-versusBtn.addEventListener("click", () => reset("versus"));
 titleSoloBtn.addEventListener("click", () => reset("solo"));
 titleVersusBtn.addEventListener("click", () => reset("versus"));
 retryBtn.addEventListener("click", () => reset(state.mode));
@@ -681,7 +681,8 @@ loadImages().then((images) => {
   state.loadedCats = images;
   buildWorld();
   if (images.length === 0) {
-    updateHud("猫画像が読み込めませんでした。assets/trimcats を確認してください。");
+    gameOverMessageEl.textContent = "猫画像が読み込めませんでした。";
+    gameOverScreen.hidden = false;
     return;
   }
   reset("solo");

@@ -108,8 +108,8 @@ setTimeout(() => {
     reset,
     showTitle,
     step,
-    getStatus: () => document.querySelector("#status").textContent,
-    getScore: () => document.querySelector("#score").textContent,
+    getStatus: () => document.querySelector("#gameOverMessage").textContent,
+    getScore: () => document.querySelector("#hudScore").textContent,
   };
 }, 0);`,
   context,

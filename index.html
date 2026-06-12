@@ -8,23 +8,6 @@
   </head>
   <body>
     <main class="app">
-      <section class="hud" aria-label="game controls">
-        <div>
-          <h1>ねこ器タワー</h1>
-          <p class="status" id="status">タイトルでモードを選んでください。</p>
-        </div>
-        <div class="scorebar">
-          <span>Score <strong id="score">0</strong></span>
-          <span>Best <strong id="best">0</strong></span>
-          <span id="turnLabel">Solo</span>
-        </div>
-        <div class="controls">
-          <button id="soloBtn" type="button">ひとり用</button>
-          <button id="versusBtn" type="button">対戦</button>
-          <button id="restartBtn" type="button">Retry</button>
-        </div>
-      </section>
-
       <section class="game-shell">
         <canvas id="game" width="900" height="1200" aria-label="cat bowl physics game"></canvas>
 
@@ -36,7 +19,6 @@
 
         <section class="overlay title-screen" id="titleScreen" aria-label="title screen">
           <h2>ねこ器タワー</h2>
-          <p>変な形の猫を器に詰めよう。</p>
           <button id="titleSoloBtn" type="button">ひとり用</button>
           <button id="titleVersusBtn" type="button">対戦</button>
         </section>

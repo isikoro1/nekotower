@@ -40,48 +40,18 @@ button:focus-visible {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(240px, 320px) minmax(320px, 1fr);
-  gap: 18px;
+  grid-template-columns: 1fr;
+  justify-items: center;
   margin: 0 auto;
-  max-width: 1180px;
+  max-width: 760px;
   min-height: 100vh;
   padding: 16px;
-}
-
-.hud {
-  align-content: start;
-  display: grid;
-  gap: 16px;
 }
 
 h1 {
   font-size: clamp(28px, 4vw, 44px);
   line-height: 1;
   margin: 0 0 10px;
-}
-
-.status {
-  color: #52646b;
-  font-size: 15px;
-  line-height: 1.55;
-  margin: 0;
-}
-
-.scorebar,
-.controls {
-  display: grid;
-  gap: 10px;
-}
-
-.scorebar {
-  border-left: 4px solid #4b98b8;
-  font-size: 18px;
-  padding-left: 12px;
-}
-
-.scorebar span {
-  display: flex;
-  justify-content: space-between;
 }
 
 .game-shell {
@@ -171,20 +141,7 @@ canvas {
 
 @media (max-width: 760px) {
   .app {
-    grid-template-columns: 1fr;
     padding: 0;
-  }
-
-  .hud {
-    display: none;
-  }
-
-  .scorebar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .scorebar span {
-    display: block;
   }
 
   canvas {
