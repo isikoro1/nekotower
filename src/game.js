@@ -45,7 +45,7 @@ const state = {
   active: null,
   aiming: true,
   score: 0,
-  best: Number(localStorage.getItem("cat-bowl-best") || 0),
+  best: 0,
   stage: "bowl",
   screen: "title",
   gameOver: false,
@@ -56,6 +56,15 @@ const state = {
   keys: new Set(),
 };
 
+function bestKey(stage) {
+  return `cat-bowl-best:${stage}`;
+}
+
+function getBest(stage) {
+  return Number(localStorage.getItem(bestKey(stage)) || 0);
+}
+
+state.best = getBest(state.stage);
 hudBestEl.textContent = state.best;
 
 function rand(min, max) {
@@ -314,9 +323,12 @@ function stageBodies(stage) {
     return [
       makeWall(450, 1040, 430, 34, 0),
       makeWall(450, 840, 34, 390, 0),
-      makeWall(340, 905, 280, 30, -0.08),
-      makeWall(560, 750, 270, 30, 0.08),
-      makeWall(385, 585, 230, 30, -0.05),
+      makeWall(340, 895, 280, 30, 0.04),
+      makeWall(560, 750, 270, 30, -0.04),
+      makeWall(385, 585, 230, 30, 0.03),
+      wallFromSegment({ x: 610, y: 590 }, { x: 650, y: 660 }, 24),
+      wallFromSegment({ x: 650, y: 660 }, { x: 760, y: 660 }, 24),
+      wallFromSegment({ x: 760, y: 660 }, { x: 800, y: 590 }, 24),
     ];
   }
 
@@ -363,6 +375,7 @@ function buildWorld() {
 function reset(stage = state.stage) {
   if (physics.engine) Events.off(physics.engine);
   state.stage = stage;
+  state.best = getBest(stage);
   buildWorld();
   state.cats = [];
   state.active = null;
@@ -413,7 +426,7 @@ function nextTurn() {
     state.score += 1;
     if (state.score > state.best) {
       state.best = state.score;
-      localStorage.setItem("cat-bowl-best", String(state.best));
+      localStorage.setItem(bestKey(state.stage), String(state.best));
     }
   }
   spawn();
@@ -526,12 +539,20 @@ function drawStage() {
     ctx.lineTo(665, 1040);
     ctx.moveTo(450, 1038);
     ctx.lineTo(450, 650);
-    ctx.moveTo(205, 905);
-    ctx.lineTo(475, 883);
-    ctx.moveTo(428, 739);
-    ctx.lineTo(692, 760);
-    ctx.moveTo(272, 591);
-    ctx.lineTo(498, 580);
+    ctx.moveTo(203, 889);
+    ctx.lineTo(477, 900);
+    ctx.moveTo(426, 755);
+    ctx.lineTo(694, 744);
+    ctx.moveTo(272, 581);
+    ctx.lineTo(498, 588);
+    ctx.stroke();
+    ctx.strokeStyle = "#9c7655";
+    ctx.lineWidth = 24;
+    ctx.beginPath();
+    ctx.moveTo(610, 590);
+    ctx.lineTo(650, 660);
+    ctx.lineTo(760, 660);
+    ctx.lineTo(800, 590);
     ctx.stroke();
   } else if (state.stage === "bottle") {
     ctx.strokeStyle = "rgba(82, 143, 164, 0.66)";

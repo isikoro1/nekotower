@@ -7,6 +7,7 @@ const Matter = require(path.join(root, "vendor", "matter.min.js"));
 const decomp = require(path.join(root, "vendor", "decomp.min.js"));
 
 const elements = new Map();
+const storage = new Map();
 function element(id) {
   if (!elements.has(id)) {
     elements.set(id, {
@@ -47,8 +48,8 @@ const context = {
     now: () => context.__now,
   },
   localStorage: {
-    getItem: () => null,
-    setItem: () => {},
+    getItem: (key) => storage.get(key) || null,
+    setItem: (key, value) => storage.set(key, value),
   },
   document: {
     querySelector(selector) {
@@ -147,6 +148,12 @@ setTimeout(() => {
     if (context.__test.state.stage !== stage) throw new Error(`stage did not switch to ${stage}`);
     if (staticBodies.length < 2) throw new Error(`stage ${stage} did not create enough static bodies`);
   }
+  storage.set("cat-bowl-best:bowl", "7");
+  storage.set("cat-bowl-best:tower", "3");
+  context.__test.reset("bowl");
+  if (context.__test.state.best !== 7) throw new Error(`bowl best did not load; best=${context.__test.state.best}`);
+  context.__test.reset("tower");
+  if (context.__test.state.best !== 3) throw new Error(`tower best did not load; best=${context.__test.state.best}`);
   context.__test.reset("bowl");
   if (!context.__test.state.active) throw new Error("no active cat after init");
   if (context.__test.state.active.body.plugin.hitType !== "contour") {
