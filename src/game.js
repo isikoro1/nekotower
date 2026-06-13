@@ -939,9 +939,12 @@ window.addEventListener("keyup", (event) => {
 
 let lastPointerType = "mouse";
 
-document.querySelector(".game-shell").addEventListener("contextmenu", (event) => {
-  event.preventDefault();
-});
+function preventGameGestureMenu(event) {
+  if (event.target.closest?.(".game-shell")) event.preventDefault();
+}
+
+document.addEventListener("contextmenu", preventGameGestureMenu, { capture: true });
+document.addEventListener("selectstart", preventGameGestureMenu, { capture: true });
 
 canvas.addEventListener("pointermove", (event) => {
   const rect = canvas.getBoundingClientRect();
@@ -991,6 +994,7 @@ function holdButton(button, onStart, onStop) {
   button.addEventListener("pointercancel", stop);
   button.addEventListener("pointerleave", stop);
   button.addEventListener("contextmenu", (event) => event.preventDefault());
+  button.addEventListener("touchstart", (event) => event.preventDefault(), { passive: false });
 }
 
 holdButton(

@@ -82,6 +82,9 @@ canvas {
   max-width: 100%;
   height: auto;
   touch-action: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   width: 100%;
 }
 
@@ -233,6 +236,9 @@ canvas {
   inset: 0;
   pointer-events: none;
   position: absolute;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   z-index: 2;
 }
 

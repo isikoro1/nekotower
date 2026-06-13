@@ -63,6 +63,7 @@ const context = {
     setItem: (key, value) => storage.set(key, value),
   },
   document: {
+    addEventListener() {},
     querySelector(selector) {
       if (selector === "#game") return element("game");
       return element(selector.replace("#", ""));
