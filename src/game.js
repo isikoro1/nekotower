@@ -355,7 +355,7 @@ function stageBodies(stage) {
   if (stage === "tower") {
     return [
       makeWall(450, 1040, 516, 34, 0),
-      makeWall(450, 840, 34, 390, 0),
+      makeWall(450, 762, 34, 546, 0),
       wallFromSegment({ x: 220, y: 840 }, { x: 260, y: 910 }, 24),
       wallFromSegment({ x: 260, y: 910 }, { x: 420, y: 910 }, 24),
       wallFromSegment({ x: 420, y: 910 }, { x: 460, y: 840 }, 24),
@@ -606,7 +606,7 @@ function drawStage() {
     ctx.moveTo(192, 1040);
     ctx.lineTo(708, 1040);
     ctx.moveTo(450, 1038);
-    ctx.lineTo(450, 650);
+    ctx.lineTo(450, 494);
     ctx.moveTo(466, 753);
     ctx.lineTo(654, 747);
     ctx.moveTo(334, 583);
