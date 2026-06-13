@@ -19,12 +19,26 @@
 
         <section class="overlay title-screen" id="titleScreen" aria-label="title screen">
           <h2>ねこタワー</h2>
-          <div class="title-cats" id="titleCats" aria-hidden="true"></div>
-          <div class="stage-buttons">
-            <button id="stageBowlBtn" type="button">お椀</button>
-            <button id="stagePlatformBtn" type="button">平台</button>
-            <button id="stageTowerBtn" type="button">キャットタワー</button>
-            <button id="stageBottleBtn" type="button">猫瓶</button>
+          <div class="title-menu" id="titleMenu">
+            <div class="title-cats" id="titleCats" aria-hidden="true"></div>
+            <div class="stage-buttons">
+              <button id="stageBowlBtn" type="button">お椀</button>
+              <button id="stagePlatformBtn" type="button">平台</button>
+              <button id="stageTowerBtn" type="button">キャットタワー</button>
+              <button id="stageBottleBtn" type="button">猫瓶</button>
+            </div>
+            <button id="howToBtn" class="wide-button" type="button">遊び方</button>
+          </div>
+          <div class="howto-panel" id="howToPanel" hidden>
+            <h3>遊び方</h3>
+            <p>猫を落として、ステージから落とさずに何匹積めるかを競います。</p>
+            <ul>
+              <li>ドラッグ / A・Dキー: 左右移動</li>
+              <li>丸ボタン / Q・E / ←・→: 回転</li>
+              <li>Drop / Space / PC左クリック: 落下</li>
+              <li>高速回転中に落とすと、回転方向へカーブします。</li>
+            </ul>
+            <button id="howToBackBtn" type="button">戻る</button>
           </div>
         </section>
 

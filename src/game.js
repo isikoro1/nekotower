@@ -5,6 +5,8 @@ const hudScoreEl = document.querySelector("#hudScore");
 const hudBestEl = document.querySelector("#hudBest");
 const hudTurnEl = document.querySelector("#hudTurn");
 const titleCatsEl = document.querySelector("#titleCats");
+const titleMenuEl = document.querySelector("#titleMenu");
+const howToPanelEl = document.querySelector("#howToPanel");
 const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
 const gameOverMessageEl = document.querySelector("#gameOverMessage");
@@ -12,6 +14,8 @@ const stageBowlBtn = document.querySelector("#stageBowlBtn");
 const stagePlatformBtn = document.querySelector("#stagePlatformBtn");
 const stageTowerBtn = document.querySelector("#stageTowerBtn");
 const stageBottleBtn = document.querySelector("#stageBottleBtn");
+const howToBtn = document.querySelector("#howToBtn");
+const howToBackBtn = document.querySelector("#howToBackBtn");
 const retryBtn = document.querySelector("#retryBtn");
 const toTitleBtn = document.querySelector("#toTitleBtn");
 
@@ -483,12 +487,23 @@ function lose(cat) {
   updateHud();
 }
 
+function showTitleMenu() {
+  titleMenuEl.hidden = false;
+  howToPanelEl.hidden = true;
+}
+
+function showHowTo() {
+  titleMenuEl.hidden = true;
+  howToPanelEl.hidden = false;
+}
+
 function showTitle() {
   state.screen = "title";
   state.gameOver = false;
   state.aiming = false;
   titleScreen.hidden = false;
   gameOverScreen.hidden = true;
+  showTitleMenu();
   updateHud();
 }
 
@@ -891,6 +906,8 @@ stageBowlBtn.addEventListener("click", () => reset("bowl"));
 stagePlatformBtn.addEventListener("click", () => reset("platform"));
 stageTowerBtn.addEventListener("click", () => reset("tower"));
 stageBottleBtn.addEventListener("click", () => reset("bottle"));
+howToBtn.addEventListener("click", showHowTo);
+howToBackBtn.addEventListener("click", showTitleMenu);
 retryBtn.addEventListener("click", () => reset(state.stage));
 toTitleBtn.addEventListener("click", showTitle);
 

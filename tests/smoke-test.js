@@ -129,6 +129,8 @@ setTimeout(() => {
     dropActive,
     reset,
     showTitle,
+    showHowTo,
+    showTitleMenu,
     step,
     getStatus: () => document.querySelector("#gameOverMessage").textContent,
     getScore: () => document.querySelector("#hudScore").textContent,
@@ -163,6 +165,15 @@ function dropAndSettle() {
 
 setTimeout(() => {
   if (!context.__test) throw new Error("game did not initialize");
+  context.__test.showTitle();
+  context.__test.showHowTo();
+  if (!element("titleMenu").hidden || element("howToPanel").hidden) {
+    throw new Error("how-to panel did not open from title");
+  }
+  context.__test.showTitleMenu();
+  if (element("titleMenu").hidden || !element("howToPanel").hidden) {
+    throw new Error("how-to panel did not return to title menu");
+  }
   for (const stage of ["bowl", "platform", "tower", "bottle"]) {
     context.__test.reset(stage);
     const staticBodies = Matter.Composite.allBodies(context.__test.physics.engine.world).filter((body) => body.isStatic);
