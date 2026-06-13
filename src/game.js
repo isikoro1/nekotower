@@ -37,7 +37,8 @@ const AIM_MAX_X = 855;
 const DROP_SPIN_MULTIPLIER = 1.8;
 const SPIN_CURVE_FORCE = 0.364;
 const SPIN_CURVE_MAX = 0.0715;
-const SPIN_CURVE_MIN = 0.003;
+const SPIN_CURVE_MIN = 0.045;
+const SPIN_CURVE_STOP_MIN = 0.012;
 const SPIN_CURVE_RAMP_MS = 1200;
 const SPAWN_ZOOM_HOLD_MS = 700;
 const SPAWN_ZOOM_SHRINK_MS = 620;
@@ -581,13 +582,25 @@ function aimActive(dt) {
 function applySpinCurveForces() {
   for (const cat of state.cats) {
     if (!cat.dropped || cat.body.isStatic || cat.body.isSleeping) continue;
-    const spin = cat.curveSpin;
-    if (Math.abs(spin) < SPIN_CURVE_MIN) continue;
+    const initialSpin = cat.curveSpin;
+    if (Math.abs(initialSpin) < SPIN_CURVE_MIN) continue;
+    const liveSpin = cat.body.angularVelocity;
+    if (Math.abs(liveSpin) < SPIN_CURVE_STOP_MIN || Math.sign(liveSpin) !== Math.sign(initialSpin)) {
+      cat.curveSpin = 0;
+      continue;
+    }
+    const spinRatio = clamp((Math.abs(liveSpin) - SPIN_CURVE_MIN) / (ROT_MAX * DROP_SPIN_MULTIPLIER - SPIN_CURVE_MIN), 0, 1);
+    if (spinRatio <= 0) continue;
     const elapsed = Math.max(0, performance.now() - cat.droppedAt);
     const ramp = Math.min(1, elapsed / SPIN_CURVE_RAMP_MS);
     const curveRamp = ramp * ramp;
+    const curveStrength = spinRatio * spinRatio;
     const falling = Math.max(0.3, Math.min(4, cat.body.velocity.y + 0.8));
-    const curveVelocity = clamp(spin * falling * SPIN_CURVE_FORCE * curveRamp, -SPIN_CURVE_MAX, SPIN_CURVE_MAX);
+    const curveVelocity = clamp(
+      Math.sign(initialSpin) * falling * SPIN_CURVE_FORCE * curveRamp * curveStrength,
+      -SPIN_CURVE_MAX,
+      SPIN_CURVE_MAX,
+    );
     Body.setVelocity(cat.body, {
       x: cat.body.velocity.x + curveVelocity,
       y: cat.body.velocity.y,
@@ -604,6 +617,7 @@ function updateStability() {
       cat.stableFrames += 1;
       Body.setVelocity(cat.body, { x: 0, y: 0 });
       Body.setAngularVelocity(cat.body, 0);
+      cat.curveSpin = 0;
     } else {
       cat.stableFrames = 0;
     }

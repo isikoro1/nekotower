@@ -217,9 +217,20 @@ setTimeout(() => {
   const angleAfterRelease = context.__test.state.active.body.angle;
   if (heldSpin <= 0.005) throw new Error(`spin did not accelerate; spin=${heldSpin}`);
   if (angleAfterRelease <= angleBeforeRelease) throw new Error("spin did not continue after release");
+  context.__test.reset("bowl");
+  context.__test.state.spinVelocity = 0.02;
   context.__test.dropActive();
-  if (Math.abs(context.__test.state.cats[0].body.angularVelocity) <= 0.004) {
-    throw new Error(`drop did not inherit spin; angular=${context.__test.state.cats[0].body.angularVelocity}`);
+  advance(80);
+  const weakCurveX = context.__test.state.cats[0].body.velocity.x;
+  if (weakCurveX > 0.08) {
+    throw new Error(`weak spin curve was too strong; vx=${weakCurveX}`);
+  }
+
+  context.__test.reset("bowl");
+  context.__test.state.spinVelocity = 0.16;
+  context.__test.dropActive();
+  if (Math.abs(context.__test.state.cats[0].body.angularVelocity) <= 0.1) {
+    throw new Error(`drop did not inherit strong spin; angular=${context.__test.state.cats[0].body.angularVelocity}`);
   }
   advance(6);
   const earlyCurveX = context.__test.state.cats[0].body.velocity.x;
@@ -230,6 +241,11 @@ setTimeout(() => {
   }
   if (lateCurveX <= earlyCurveX + 0.08) {
     throw new Error(`spin curve did not add rightward velocity; vx=${context.__test.state.cats[0].body.velocity.x}`);
+  }
+  Matter.Body.setAngularVelocity(context.__test.state.cats[0].body, 0);
+  advance(2);
+  if (context.__test.state.cats[0].curveSpin !== 0) {
+    throw new Error("spin curve did not reset after angular velocity stopped");
   }
   context.__test.reset("bowl");
   const initialBodies = Matter.Composite.allBodies(context.__test.physics.engine.world);
