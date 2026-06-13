@@ -4,6 +4,7 @@ const ctx = canvas.getContext("2d");
 const hudScoreEl = document.querySelector("#hudScore");
 const hudBestEl = document.querySelector("#hudBest");
 const hudTurnEl = document.querySelector("#hudTurn");
+const titleCatsEl = document.querySelector("#titleCats");
 const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
 const gameOverMessageEl = document.querySelector("#gameOverMessage");
@@ -101,6 +102,22 @@ function loadImages() {
         }),
     ),
   ).then((images) => images.filter(Boolean));
+}
+
+function populateTitleCats(images) {
+  if (!titleCatsEl) return;
+  titleCatsEl.replaceChildren();
+  const shuffled = [...images].sort(() => Math.random() - 0.5).slice(0, 18);
+  for (const asset of shuffled) {
+    const img = document.createElement("img");
+    img.src = `./assets/trimcats/${encodeURIComponent(asset.name)}`;
+    img.alt = "";
+    const size = Math.round(rand(46, 72));
+    img.style.setProperty("--cat-size", `${size}px`);
+    img.style.setProperty("--cat-size-mobile", `${Math.round(size * 0.78)}px`);
+    img.style.setProperty("--cat-rot", `${Math.round(rand(-18, 18))}deg`);
+    titleCatsEl.appendChild(img);
+  }
 }
 
 function makeFallbackCircleParts(drawW, drawH) {
@@ -829,6 +846,7 @@ loadImages().then((images) => {
     gameOverScreen.hidden = false;
     return;
   }
+  populateTitleCats(images);
   reset("bowl");
   showTitle();
   requestAnimationFrame(loop);

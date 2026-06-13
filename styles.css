@@ -112,6 +112,10 @@ canvas {
   z-index: 3;
 }
 
+.title-screen {
+  max-width: min(520px, calc(100% - 32px));
+}
+
 .overlay[hidden] {
   display: none;
 }
@@ -129,6 +133,37 @@ canvas {
 
 .overlay button {
   min-width: 180px;
+}
+
+.title-cats {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  justify-content: center;
+  margin: 2px 0 4px;
+  max-height: 170px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.title-cats img {
+  filter: drop-shadow(0 4px 6px rgba(42, 63, 72, 0.24));
+  height: var(--cat-size, 56px);
+  object-fit: contain;
+  transform: rotate(var(--cat-rot, 0deg));
+  width: var(--cat-size, 56px);
+}
+
+.stage-buttons {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(390px, 100%);
+}
+
+.stage-buttons button {
+  min-width: 0;
 }
 
 .touch-controls {
@@ -216,5 +251,18 @@ canvas {
     right: 10px;
     top: calc(50% + 40px);
     width: 76px;
+  }
+
+  .title-screen {
+    padding: 18px;
+  }
+
+  .title-cats {
+    max-height: 132px;
+  }
+
+  .title-cats img {
+    height: var(--cat-size-mobile, 44px);
+    width: var(--cat-size-mobile, 44px);
   }
 }

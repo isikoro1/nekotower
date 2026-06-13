@@ -13,7 +13,18 @@ function element(id) {
     elements.set(id, {
       id,
       textContent: "",
+      children: [],
+      style: {
+        setProperty() {},
+      },
       addEventListener() {},
+      appendChild(child) {
+        this.children.push(child);
+        return child;
+      },
+      replaceChildren() {
+        this.children = [];
+      },
       getContext() {
         return ctx;
       },
@@ -55,6 +66,16 @@ const context = {
     querySelector(selector) {
       if (selector === "#game") return element("game");
       return element(selector.replace("#", ""));
+    },
+    createElement(tagName) {
+      return {
+        tagName,
+        alt: "",
+        src: "",
+        style: {
+          setProperty() {},
+        },
+      };
     },
     scripts: [],
     body: { innerText: "" },
