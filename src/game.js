@@ -939,6 +939,10 @@ window.addEventListener("keyup", (event) => {
 
 let lastPointerType = "mouse";
 
+document.querySelector(".game-shell").addEventListener("contextmenu", (event) => {
+  event.preventDefault();
+});
+
 canvas.addEventListener("pointermove", (event) => {
   const rect = canvas.getBoundingClientRect();
   state.pointerX = ((event.clientX - rect.left) / rect.width) * W;
@@ -974,13 +978,19 @@ canvas.addEventListener("pointerleave", () => {
 function holdButton(button, onStart, onStop) {
   const start = (event) => {
     event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
     onStart();
   };
-  const stop = () => onStop();
+  const stop = (event) => {
+    event.preventDefault();
+    button.releasePointerCapture?.(event.pointerId);
+    onStop();
+  };
   button.addEventListener("pointerdown", start);
   button.addEventListener("pointerup", stop);
   button.addEventListener("pointercancel", stop);
   button.addEventListener("pointerleave", stop);
+  button.addEventListener("contextmenu", (event) => event.preventDefault());
 }
 
 holdButton(
