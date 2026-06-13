@@ -28,8 +28,8 @@ const ROT_MAX = 0.195;
 const ROT_FAST_DECAY = 0.999;
 const ROT_SLOW_DECAY = 0.94;
 const ROT_FAST_THRESHOLD = 0.04;
-const AIM_MIN_X = 140;
-const AIM_MAX_X = 760;
+const AIM_MIN_X = 45;
+const AIM_MAX_X = 855;
 const DROP_SPIN_MULTIPLIER = 1.8;
 const SPIN_CURVE_FORCE = 0.364;
 const SPIN_CURVE_MAX = 0.0715;
@@ -359,7 +359,7 @@ function stageBodies(stage) {
       wallFromSegment({ x: 220, y: 840 }, { x: 260, y: 910 }, 24),
       wallFromSegment({ x: 260, y: 910 }, { x: 420, y: 910 }, 24),
       wallFromSegment({ x: 420, y: 910 }, { x: 460, y: 840 }, 24),
-      makeWall(560, 750, 270, 30, -0.04),
+      makeWall(560, 750, 189, 30, -0.04),
       makeWall(392, 585, 116, 30, 0.03),
     ];
   }
@@ -607,8 +607,8 @@ function drawStage() {
     ctx.lineTo(708, 1040);
     ctx.moveTo(450, 1038);
     ctx.lineTo(450, 650);
-    ctx.moveTo(426, 755);
-    ctx.lineTo(694, 744);
+    ctx.moveTo(466, 753);
+    ctx.lineTo(654, 747);
     ctx.moveTo(334, 583);
     ctx.lineTo(450, 587);
     ctx.stroke();
