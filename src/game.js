@@ -39,7 +39,8 @@ const SPIN_CURVE_FORCE = 0.364;
 const SPIN_CURVE_MAX = 0.0715;
 const SPIN_CURVE_MIN = 0.003;
 const SPIN_CURVE_RAMP_MS = 1200;
-const SPAWN_ZOOM_MS = 620;
+const SPAWN_ZOOM_HOLD_MS = 700;
+const SPAWN_ZOOM_SHRINK_MS = 620;
 const SPAWN_ZOOM_SCALE = 3.4;
 
 if (window.decomp) {
@@ -77,6 +78,10 @@ const state = {
   keys: new Set(),
 };
 
+const audio = {
+  context: null,
+};
+
 function bestKey(stage) {
   return `cat-bowl-best:${stage}`;
 }
@@ -98,6 +103,42 @@ function clamp(value, min, max) {
 
 function easeOutCubic(value) {
   return 1 - Math.pow(1 - value, 3);
+}
+
+function playMeow() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  if (!audio.context) audio.context = new AudioContextClass();
+  const context = audio.context;
+  if (context.state === "suspended") context.resume();
+
+  const now = context.currentTime;
+  const gain = context.createGain();
+  const osc = context.createOscillator();
+  const tremolo = context.createOscillator();
+  const tremoloGain = context.createGain();
+
+  osc.type = "sawtooth";
+  osc.frequency.setValueAtTime(rand(610, 720), now);
+  osc.frequency.exponentialRampToValueAtTime(rand(410, 480), now + 0.16);
+  osc.frequency.exponentialRampToValueAtTime(rand(660, 760), now + 0.34);
+
+  tremolo.type = "sine";
+  tremolo.frequency.setValueAtTime(rand(18, 24), now);
+  tremoloGain.gain.setValueAtTime(28, now);
+  tremolo.connect(tremoloGain);
+  tremoloGain.connect(osc.frequency);
+
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.075, now + 0.035);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+
+  osc.connect(gain);
+  gain.connect(context.destination);
+  osc.start(now);
+  tremolo.start(now);
+  osc.stop(now + 0.44);
+  tremolo.stop(now + 0.44);
 }
 
 function loadImages() {
@@ -441,6 +482,7 @@ function spawn() {
   state.active = makeCat();
   state.cats.push(state.active);
   state.aiming = true;
+  playMeow();
 }
 
 function updateHud() {
@@ -692,7 +734,7 @@ function drawCat(cat) {
   let y = body.position.y;
   let scale = 1;
   if (cat === state.active && state.aiming && !cat.dropped) {
-    const progress = clamp((performance.now() - cat.spawnedAt) / SPAWN_ZOOM_MS, 0, 1);
+    const progress = clamp((performance.now() - cat.spawnedAt - SPAWN_ZOOM_HOLD_MS) / SPAWN_ZOOM_SHRINK_MS, 0, 1);
     const eased = easeOutCubic(progress);
     const startX = W / 2;
     const startY = state.cameraY + H * 0.43;
