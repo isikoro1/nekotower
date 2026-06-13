@@ -34,6 +34,7 @@ const DROP_SPIN_MULTIPLIER = 1.8;
 const SPIN_CURVE_FORCE = 0.28;
 const SPIN_CURVE_MAX = 0.055;
 const SPIN_CURVE_MIN = 0.003;
+const SPIN_CURVE_RAMP_MS = 1200;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -317,6 +318,7 @@ function makeCat() {
     counted: false,
     stableFrames: 0,
     curveSpin: 0,
+    droppedAt: 0,
   };
   cat.body = makeCatBody(cat);
   Body.setStatic(cat.body, true);
@@ -448,6 +450,7 @@ function dropActive() {
   state.active.curveSpin = hasCurveSpin ? spin : 0;
   Body.setPosition(body, { x: body.position.x, y: body.position.y + 1 });
   state.active.dropped = true;
+  state.active.droppedAt = performance.now();
   state.active.stableFrames = 0;
   state.aiming = false;
   state.spinInput = 0;
@@ -515,8 +518,11 @@ function applySpinCurveForces() {
     if (!cat.dropped || cat.body.isStatic || cat.body.isSleeping) continue;
     const spin = cat.curveSpin;
     if (Math.abs(spin) < SPIN_CURVE_MIN) continue;
+    const elapsed = Math.max(0, performance.now() - cat.droppedAt);
+    const ramp = Math.min(1, elapsed / SPIN_CURVE_RAMP_MS);
+    const curveRamp = ramp * ramp;
     const falling = Math.max(0.3, Math.min(4, cat.body.velocity.y + 0.8));
-    const curveVelocity = clamp(spin * falling * SPIN_CURVE_FORCE, -SPIN_CURVE_MAX, SPIN_CURVE_MAX);
+    const curveVelocity = clamp(spin * falling * SPIN_CURVE_FORCE * curveRamp, -SPIN_CURVE_MAX, SPIN_CURVE_MAX);
     Body.setVelocity(cat.body, {
       x: cat.body.velocity.x + curveVelocity,
       y: cat.body.velocity.y,

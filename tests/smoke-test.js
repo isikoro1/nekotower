@@ -201,8 +201,14 @@ setTimeout(() => {
   if (Math.abs(context.__test.state.cats[0].body.angularVelocity) <= 0.004) {
     throw new Error(`drop did not inherit spin; angular=${context.__test.state.cats[0].body.angularVelocity}`);
   }
-  advance(20);
-  if (context.__test.state.cats[0].body.velocity.x <= 0.02) {
+  advance(6);
+  const earlyCurveX = context.__test.state.cats[0].body.velocity.x;
+  advance(70);
+  const lateCurveX = context.__test.state.cats[0].body.velocity.x;
+  if (earlyCurveX > 0.08) {
+    throw new Error(`spin curve started too strongly; earlyVx=${earlyCurveX}`);
+  }
+  if (lateCurveX <= earlyCurveX + 0.08) {
     throw new Error(`spin curve did not add rightward velocity; vx=${context.__test.state.cats[0].body.velocity.x}`);
   }
   context.__test.reset("bowl");
