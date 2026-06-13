@@ -39,6 +39,8 @@ const SPIN_CURVE_FORCE = 0.364;
 const SPIN_CURVE_MAX = 0.0715;
 const SPIN_CURVE_MIN = 0.003;
 const SPIN_CURVE_RAMP_MS = 1200;
+const SPAWN_ZOOM_MS = 620;
+const SPAWN_ZOOM_SCALE = 3.4;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -92,6 +94,10 @@ function rand(min, max) {
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
+}
+
+function easeOutCubic(value) {
+  return 1 - Math.pow(1 - value, 3);
 }
 
 function loadImages() {
@@ -323,6 +329,7 @@ function makeCat() {
     stableFrames: 0,
     curveSpin: 0,
     droppedAt: 0,
+    spawnedAt: performance.now(),
   };
   cat.body = makeCatBody(cat);
   Body.setStatic(cat.body, true);
@@ -681,9 +688,22 @@ function drawStage() {
 
 function drawCat(cat) {
   const body = cat.body;
+  let x = body.position.x;
+  let y = body.position.y;
+  let scale = 1;
+  if (cat === state.active && state.aiming && !cat.dropped) {
+    const progress = clamp((performance.now() - cat.spawnedAt) / SPAWN_ZOOM_MS, 0, 1);
+    const eased = easeOutCubic(progress);
+    const startX = W / 2;
+    const startY = state.cameraY + H * 0.43;
+    x = startX + (body.position.x - startX) * eased;
+    y = startY + (body.position.y - startY) * eased;
+    scale = SPAWN_ZOOM_SCALE + (1 - SPAWN_ZOOM_SCALE) * eased;
+  }
   ctx.save();
-  ctx.translate(body.position.x, body.position.y);
+  ctx.translate(x, y);
   ctx.rotate(body.angle);
+  ctx.scale(scale, scale);
   ctx.shadowColor = "rgba(30, 55, 65, 0.22)";
   ctx.shadowBlur = 12;
   ctx.shadowOffsetY = 6;
