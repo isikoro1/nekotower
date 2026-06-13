@@ -107,6 +107,23 @@ context.Image = class FakeImage {
   }
 };
 
+context.Audio = class FakeAudio {
+  constructor(src = "") {
+    this.src = src;
+    this.preload = "";
+    this.volume = 1;
+  }
+  cloneNode() {
+    const audio = new context.Audio(this.src);
+    audio.preload = this.preload;
+    audio.volume = this.volume;
+    return audio;
+  }
+  play() {
+    return Promise.resolve();
+  }
+};
+
 vm.createContext(context);
 vm.runInContext(fs.readFileSync(path.join(root, "src", "cats.js"), "utf8"), context, {
   filename: "cats.js",

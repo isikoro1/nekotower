@@ -79,9 +79,18 @@ const state = {
   keys: new Set(),
 };
 
-const audio = {
-  context: null,
-};
+const MEOW_SOUNDS = [
+  "./assets/audio/cat-meow-1.mp3",
+  "./assets/audio/cat-meow-2.mp3",
+  "./assets/audio/cat-meow-3.mp3",
+];
+
+const meowPlayers = MEOW_SOUNDS.map((src) => {
+  const player = new Audio(src);
+  player.preload = "auto";
+  player.volume = 0.72;
+  return player;
+});
 
 function bestKey(stage) {
   return `cat-bowl-best:${stage}`;
@@ -107,39 +116,11 @@ function easeOutCubic(value) {
 }
 
 function playMeow() {
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
-  if (!audio.context) audio.context = new AudioContextClass();
-  const context = audio.context;
-  if (context.state === "suspended") context.resume();
-
-  const now = context.currentTime;
-  const gain = context.createGain();
-  const osc = context.createOscillator();
-  const tremolo = context.createOscillator();
-  const tremoloGain = context.createGain();
-
-  osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(rand(610, 720), now);
-  osc.frequency.exponentialRampToValueAtTime(rand(410, 480), now + 0.16);
-  osc.frequency.exponentialRampToValueAtTime(rand(660, 760), now + 0.34);
-
-  tremolo.type = "sine";
-  tremolo.frequency.setValueAtTime(rand(18, 24), now);
-  tremoloGain.gain.setValueAtTime(28, now);
-  tremolo.connect(tremoloGain);
-  tremoloGain.connect(osc.frequency);
-
-  gain.gain.setValueAtTime(0.0001, now);
-  gain.gain.exponentialRampToValueAtTime(0.075, now + 0.035);
-  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
-
-  osc.connect(gain);
-  gain.connect(context.destination);
-  osc.start(now);
-  tremolo.start(now);
-  osc.stop(now + 0.44);
-  tremolo.stop(now + 0.44);
+  const basePlayer = meowPlayers[Math.floor(Math.random() * meowPlayers.length)];
+  if (!basePlayer) return;
+  const player = basePlayer.cloneNode();
+  player.volume = basePlayer.volume;
+  player.play().catch(() => {});
 }
 
 function loadImages() {
