@@ -159,20 +159,28 @@ setTimeout(() => {
   if (context.__test.state.active.body.plugin.hitType !== "contour") {
     throw new Error(`active cat is not using contour hitbox; hitType=${context.__test.state.active.body.plugin.hitType}`);
   }
+  const startX = context.__test.state.active.body.position.x;
   context.__test.state.keys.add("D");
-  advance(20);
-  const heldSpin = context.__test.state.spinVelocity;
+  advance(8);
   context.__test.state.keys.delete("D");
+  if (context.__test.state.active.body.position.x <= startX) {
+    throw new Error("D key did not move cat right");
+  }
+  context.__test.reset("bowl");
+  context.__test.state.keys.add("E");
+  advance(90);
+  const heldSpin = context.__test.state.spinVelocity;
+  context.__test.state.keys.delete("E");
   const angleBeforeRelease = context.__test.state.active.body.angle;
   advance(12);
   const angleAfterRelease = context.__test.state.active.body.angle;
   if (heldSpin <= 0.005) throw new Error(`spin did not accelerate; spin=${heldSpin}`);
   if (angleAfterRelease <= angleBeforeRelease) throw new Error("spin did not continue after release");
   context.__test.dropActive();
-  advance(20);
-  if (context.__test.state.cats[0].body.angularVelocity <= 0.004) {
+  if (Math.abs(context.__test.state.cats[0].body.angularVelocity) <= 0.004) {
     throw new Error(`drop did not inherit spin; angular=${context.__test.state.cats[0].body.angularVelocity}`);
   }
+  advance(20);
   if (context.__test.state.cats[0].body.velocity.x <= 0.02) {
     throw new Error(`spin curve did not add rightward velocity; vx=${context.__test.state.cats[0].body.velocity.x}`);
   }

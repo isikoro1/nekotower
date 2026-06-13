@@ -24,7 +24,11 @@ const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
 const ROT_ACCEL = 0.0003;
 const ROT_MAX = 0.15;
-const ROT_IDLE_DECAY = 0.999;
+const ROT_FAST_DECAY = 0.999;
+const ROT_SLOW_DECAY = 0.94;
+const ROT_FAST_THRESHOLD = 0.04;
+const AIM_MIN_X = 140;
+const AIM_MAX_X = 760;
 const DROP_SPIN_MULTIPLIER = 1.8;
 const SPIN_CURVE_FORCE = 0.28;
 const SPIN_CURVE_MAX = 0.055;
@@ -295,6 +299,7 @@ function makeCat() {
     dropped: false,
     counted: false,
     stableFrames: 0,
+    curveSpin: 0,
   };
   cat.body = makeCatBody(cat);
   Body.setStatic(cat.body, true);
@@ -420,8 +425,10 @@ function dropActive() {
   Body.setStatic(body, false);
   Sleeping.set(body, false);
   Body.setVelocity(body, { x: 0, y: 1.1 });
-  const spin = Math.abs(state.spinVelocity) > 0.004 ? state.spinVelocity * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
+  const hasCurveSpin = Math.abs(state.spinVelocity) > 0.004;
+  const spin = hasCurveSpin ? state.spinVelocity * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
   Body.setAngularVelocity(body, spin);
+  state.active.curveSpin = hasCurveSpin ? spin : 0;
   Body.setPosition(body, { x: body.position.x, y: body.position.y + 1 });
   state.active.dropped = true;
   state.active.stableFrames = 0;
@@ -468,15 +475,18 @@ function showTitle() {
 function aimActive(dt) {
   if (state.screen !== "playing" || !state.aiming || !state.active) return;
   const body = state.active.body;
-  const move = (state.keys.has("ArrowRight") ? 1 : 0) - (state.keys.has("ArrowLeft") ? 1 : 0);
-  const rot = (state.keys.has("d") || state.keys.has("D") ? 1 : 0) - (state.keys.has("a") || state.keys.has("A") ? 1 : 0);
-  const x = clamp(body.position.x + move * 420 * dt, 205, 695);
-  const targetX = state.pointerX !== null ? clamp(state.pointerX, 205, 695) : x;
+  const move = (state.keys.has("d") || state.keys.has("D") ? 1 : 0) - (state.keys.has("a") || state.keys.has("A") ? 1 : 0);
+  const rot =
+    (state.keys.has("e") || state.keys.has("E") || state.keys.has("ArrowRight") ? 1 : 0) -
+    (state.keys.has("q") || state.keys.has("Q") || state.keys.has("ArrowLeft") ? 1 : 0);
+  const x = clamp(body.position.x + move * 480 * dt, AIM_MIN_X, AIM_MAX_X);
+  const targetX = state.pointerX !== null ? clamp(state.pointerX, AIM_MIN_X, AIM_MAX_X) : x;
   const input = state.spinInput || rot;
   if (input) {
     state.spinVelocity = clamp(state.spinVelocity + input * ROT_ACCEL, -ROT_MAX, ROT_MAX);
   } else {
-    state.spinVelocity *= ROT_IDLE_DECAY;
+    const decay = Math.abs(state.spinVelocity) >= ROT_FAST_THRESHOLD ? ROT_FAST_DECAY : ROT_SLOW_DECAY;
+    state.spinVelocity *= decay;
     if (Math.abs(state.spinVelocity) < 0.0007) state.spinVelocity = 0;
   }
   Body.setPosition(body, { x: targetX, y: state.targetCameraY + 150 });
@@ -486,7 +496,7 @@ function aimActive(dt) {
 function applySpinCurveForces() {
   for (const cat of state.cats) {
     if (!cat.dropped || cat.body.isStatic || cat.body.isSleeping) continue;
-    const spin = cat.body.angularVelocity;
+    const spin = cat.curveSpin;
     if (Math.abs(spin) < SPIN_CURVE_MIN) continue;
     const falling = Math.max(0.3, Math.min(4, cat.body.velocity.y + 0.8));
     const curveVelocity = clamp(spin * falling * SPIN_CURVE_FORCE, -SPIN_CURVE_MAX, SPIN_CURVE_MAX);
