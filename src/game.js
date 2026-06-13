@@ -24,15 +24,15 @@ const CAT_SCALE = 1.3;
 const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
 const ROT_ACCEL = 0.0003;
-const ROT_MAX = 0.15;
+const ROT_MAX = 0.195;
 const ROT_FAST_DECAY = 0.999;
 const ROT_SLOW_DECAY = 0.94;
 const ROT_FAST_THRESHOLD = 0.04;
 const AIM_MIN_X = 140;
 const AIM_MAX_X = 760;
 const DROP_SPIN_MULTIPLIER = 1.8;
-const SPIN_CURVE_FORCE = 0.28;
-const SPIN_CURVE_MAX = 0.055;
+const SPIN_CURVE_FORCE = 0.364;
+const SPIN_CURVE_MAX = 0.0715;
 const SPIN_CURVE_MIN = 0.003;
 const SPIN_CURVE_RAMP_MS = 1200;
 
@@ -681,6 +681,54 @@ function drawCat(cat) {
   ctx.restore();
 }
 
+function drawSpinChargeEffect(cat) {
+  if (cat !== state.active || !state.aiming || state.gameOver) return;
+  const charge = clamp((Math.abs(state.spinVelocity) - ROT_FAST_THRESHOLD) / (ROT_MAX - ROT_FAST_THRESHOLD), 0, 1);
+  if (charge <= 0) return;
+
+  const body = cat.body;
+  const time = performance.now() / 1000;
+  const radius = Math.max(cat.drawW, cat.drawH) * (0.52 + charge * 0.18);
+  ctx.save();
+  ctx.translate(body.position.x, body.position.y);
+  ctx.rotate(time * (state.spinVelocity >= 0 ? 1 : -1) * (2.2 + charge * 5));
+  ctx.globalAlpha = 0.28 + charge * 0.52;
+  ctx.strokeStyle = `rgba(78, 183, 232, ${0.35 + charge * 0.45})`;
+  ctx.lineWidth = 3 + charge * 5;
+  ctx.setLineDash([16, 18]);
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  const sparkCount = 6 + Math.round(charge * 8);
+  for (let i = 0; i < sparkCount; i += 1) {
+    const angle = (Math.PI * 2 * i) / sparkCount + time * (1.4 + charge * 2);
+    const pulse = 0.5 + 0.5 * Math.sin(time * 9 + i * 1.7);
+    const sparkRadius = radius + 8 + pulse * 12;
+    const x = Math.cos(angle) * sparkRadius;
+    const y = Math.sin(angle) * sparkRadius;
+    ctx.fillStyle = `rgba(255, 233, 116, ${0.25 + charge * 0.65})`;
+    ctx.beginPath();
+    ctx.arc(x, y, 2 + charge * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  if (charge > 0.92) {
+    const shine = 0.65 + 0.35 * Math.sin(time * 18);
+    ctx.globalAlpha = shine;
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(radius * 0.45, -radius * 0.7);
+    ctx.lineTo(radius * 0.45, -radius * 1.05);
+    ctx.moveTo(radius * 0.27, -radius * 0.87);
+    ctx.lineTo(radius * 0.63, -radius * 0.87);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawHitShape(cat) {
   const parts = cat.body.parts.length > 1 ? cat.body.parts.slice(1) : [cat.body];
   ctx.save();
@@ -731,6 +779,7 @@ function render() {
   ctx.translate(0, -state.cameraY);
   for (const cat of state.cats) {
     drawCat(cat);
+    drawSpinChargeEffect(cat);
     if (location.search.includes("debugHit=1")) drawHitShape(cat);
   }
   drawStage();
