@@ -91,6 +91,7 @@ const meowPlayers = MEOW_SOUNDS.map((src) => {
   player.volume = 0.72;
   return player;
 });
+let lastMeowIndex = -1;
 
 function bestKey(stage) {
   return `cat-bowl-best:${stage}`;
@@ -116,7 +117,12 @@ function easeOutCubic(value) {
 }
 
 function playMeow() {
-  const basePlayer = meowPlayers[Math.floor(Math.random() * meowPlayers.length)];
+  let index = Math.floor(Math.random() * meowPlayers.length);
+  if (meowPlayers.length > 1 && index === lastMeowIndex) {
+    index = (index + 1 + Math.floor(Math.random() * (meowPlayers.length - 1))) % meowPlayers.length;
+  }
+  lastMeowIndex = index;
+  const basePlayer = meowPlayers[index];
   if (!basePlayer) return;
   const player = basePlayer.cloneNode();
   player.volume = basePlayer.volume;
@@ -761,43 +767,81 @@ function drawSpinChargeEffect(cat) {
 
   const body = cat.body;
   const time = performance.now() / 1000;
-  const radius = Math.max(cat.drawW, cat.drawH) * (0.52 + charge * 0.18);
+  const direction = state.spinVelocity >= 0 ? 1 : -1;
+  const radius = Math.max(cat.drawW, cat.drawH) * (0.48 + charge * 0.2);
+  const flameCount = 9 + Math.round(charge * 10);
+  const spin = time * direction * (4.4 + charge * 8.2);
   ctx.save();
   ctx.translate(body.position.x, body.position.y);
-  ctx.rotate(time * (state.spinVelocity >= 0 ? 1 : -1) * (2.2 + charge * 5));
-  ctx.globalAlpha = 0.28 + charge * 0.52;
-  ctx.strokeStyle = `rgba(78, 183, 232, ${0.35 + charge * 0.45})`;
-  ctx.lineWidth = 3 + charge * 5;
-  ctx.setLineDash([16, 18]);
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
+  ctx.rotate(body.angle);
+  ctx.globalCompositeOperation = "lighter";
 
-  const sparkCount = 6 + Math.round(charge * 8);
+  ctx.globalAlpha = 0.2 + charge * 0.42;
+  ctx.strokeStyle = `rgba(255, 68, 18, ${0.32 + charge * 0.36})`;
+  ctx.lineWidth = 8 + charge * 14;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * (0.78 + charge * 0.16), spin, spin + Math.PI * 1.65 * direction, direction < 0);
+  ctx.stroke();
+
+  for (let i = 0; i < flameCount; i += 1) {
+    const angle = spin + (Math.PI * 2 * i) / flameCount;
+    const wave = 0.5 + 0.5 * Math.sin(time * 12 + i * 1.9);
+    const base = radius * (0.72 + wave * 0.14);
+    const length = (22 + wave * 28) * charge;
+    const width = 10 + charge * 16;
+    const bx = Math.cos(angle) * base;
+    const by = Math.sin(angle) * base;
+    const tx = Math.cos(angle + direction * (0.45 + charge * 0.35)) * (base + length);
+    const ty = Math.sin(angle + direction * (0.45 + charge * 0.35)) * (base + length);
+    const lx = bx + Math.cos(angle + Math.PI / 2) * width;
+    const ly = by + Math.sin(angle + Math.PI / 2) * width;
+    const rx = bx + Math.cos(angle - Math.PI / 2) * width;
+    const ry = by + Math.sin(angle - Math.PI / 2) * width;
+
+    ctx.globalAlpha = 0.18 + charge * 0.38;
+    ctx.fillStyle = "rgba(255, 45, 12, 0.78)";
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+    ctx.quadraticCurveTo(tx, ty, rx, ry);
+    ctx.quadraticCurveTo(bx, by, lx, ly);
+    ctx.fill();
+
+    ctx.globalAlpha = 0.24 + charge * 0.5;
+    ctx.fillStyle = "rgba(255, 152, 28, 0.82)";
+    ctx.beginPath();
+    ctx.moveTo((lx + bx) * 0.5, (ly + by) * 0.5);
+    ctx.quadraticCurveTo(tx * 0.94, ty * 0.94, (rx + bx) * 0.5, (ry + by) * 0.5);
+    ctx.quadraticCurveTo(bx, by, (lx + bx) * 0.5, (ly + by) * 0.5);
+    ctx.fill();
+  }
+
+  const sparkCount = 8 + Math.round(charge * 18);
   for (let i = 0; i < sparkCount; i += 1) {
-    const angle = (Math.PI * 2 * i) / sparkCount + time * (1.4 + charge * 2);
+    const angle = spin * 0.8 + (Math.PI * 2 * i) / sparkCount;
     const pulse = 0.5 + 0.5 * Math.sin(time * 9 + i * 1.7);
-    const sparkRadius = radius + 8 + pulse * 12;
+    const sparkRadius = radius + 14 + pulse * (22 + charge * 22);
     const x = Math.cos(angle) * sparkRadius;
     const y = Math.sin(angle) * sparkRadius;
-    ctx.fillStyle = `rgba(255, 233, 116, ${0.25 + charge * 0.65})`;
+    ctx.globalAlpha = 0.18 + charge * 0.7;
+    ctx.fillStyle = i % 3 === 0 ? "rgba(255, 255, 210, 0.95)" : "rgba(255, 172, 28, 0.9)";
     ctx.beginPath();
-    ctx.arc(x, y, 2 + charge * 3, 0, Math.PI * 2);
+    ctx.arc(x, y, 1.5 + pulse * 2 + charge * 2.8, 0, Math.PI * 2);
     ctx.fill();
   }
 
   if (charge > 0.92) {
-    const shine = 0.65 + 0.35 * Math.sin(time * 18);
-    ctx.globalAlpha = shine;
-    ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
-    ctx.lineWidth = 4;
+    const flash = 0.55 + 0.45 * Math.sin(time * 22);
+    ctx.globalAlpha = flash;
+    ctx.strokeStyle = "rgba(255, 246, 188, 0.96)";
+    ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(radius * 0.45, -radius * 0.7);
-    ctx.lineTo(radius * 0.45, -radius * 1.05);
-    ctx.moveTo(radius * 0.27, -radius * 0.87);
-    ctx.lineTo(radius * 0.63, -radius * 0.87);
+    ctx.arc(0, 0, radius * 1.08, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.globalAlpha = flash * 0.9;
+    ctx.fillStyle = "rgba(255, 255, 220, 0.92)";
+    ctx.beginPath();
+    ctx.arc(radius * 0.72, -radius * 0.72, 4 + charge * 5, 0, Math.PI * 2);
+    ctx.fill();
   }
   ctx.restore();
 }
