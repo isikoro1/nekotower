@@ -188,6 +188,15 @@ setTimeout(() => {
     throw new Error("D key did not move cat right");
   }
   context.__test.reset("bowl");
+  context.__test.state.pointerX = startX;
+  const pointerStartX = context.__test.state.active.body.position.x;
+  context.__test.state.keys.add("D");
+  advance(8);
+  context.__test.state.keys.delete("D");
+  if (context.__test.state.active.body.position.x <= pointerStartX || context.__test.state.pointerX !== null) {
+    throw new Error("D key did not override pointer aiming");
+  }
+  context.__test.reset("bowl");
   context.__test.state.keys.add("E");
   advance(90);
   const heldSpin = context.__test.state.spinVelocity;

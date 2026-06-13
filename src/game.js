@@ -500,6 +500,7 @@ function aimActive(dt) {
     (state.keys.has("e") || state.keys.has("E") || state.keys.has("ArrowRight") ? 1 : 0) -
     (state.keys.has("q") || state.keys.has("Q") || state.keys.has("ArrowLeft") ? 1 : 0);
   const x = clamp(body.position.x + move * 480 * dt, AIM_MIN_X, AIM_MAX_X);
+  if (move) state.pointerX = null;
   const targetX = state.pointerX !== null ? clamp(state.pointerX, AIM_MIN_X, AIM_MAX_X) : x;
   const input = state.spinInput || rot;
   if (input) {
