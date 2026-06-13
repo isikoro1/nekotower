@@ -24,10 +24,10 @@ const SMALL_CAT_SCALE = 1.5;
 const SMALL_CONTOUR_AREA = 0.13;
 const ROT_ACCEL = 0.0003;
 const ROT_MAX = 0.15;
-const ROT_IDLE_DECAY = 0.996;
+const ROT_IDLE_DECAY = 0.999;
 const DROP_SPIN_MULTIPLIER = 1.8;
-const SPIN_CURVE_FORCE = 0.09;
-const SPIN_CURVE_MAX = 0.018;
+const SPIN_CURVE_FORCE = 0.28;
+const SPIN_CURVE_MAX = 0.055;
 const SPIN_CURVE_MIN = 0.003;
 
 if (window.decomp) {
