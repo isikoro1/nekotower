@@ -490,7 +490,7 @@ function updateOnlineEntry() {
     return;
   }
   onlineBattleBtn.disabled = false;
-  onlineStatusEl.textContent = "オンライン対戦を開始できます";
+  onlineStatusEl.textContent = "オンライン接続を確認できます";
 }
 
 function startOnlineBattle() {
@@ -499,9 +499,12 @@ function startOnlineBattle() {
     updateOnlineEntry();
     return;
   }
-  onlineStatusEl.textContent = "マッチング準備中...";
+  onlineStatusEl.textContent = "オンライン接続を確認中...";
   online.startMatchmaking().catch(() => {
-    onlineStatusEl.textContent = "オンライン対戦はまだ準備中です";
+    onlineStatusEl.textContent = "オンライン接続に失敗しました";
+  }).then((result) => {
+    if (!result) return;
+    onlineStatusEl.textContent = "接続OK。マッチング機能は次に実装します";
   });
 }
 

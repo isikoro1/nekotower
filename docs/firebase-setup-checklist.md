@@ -66,5 +66,15 @@ window.NEKO_TOWER_FIREBASE_CONFIG = {
 
 - `src/online/firebase-config.example.js`: コミット済みの雛形
 - `src/online/firebase-config.js`: 実設定用。コミット禁止
-- `src/online/online-bootstrap.js`: Firebase未設定時はオンライン機能を無効化する安全スタブ
+- `src/online/online-bootstrap.js`: Firebase未設定時はオンライン機能を無効化し、設定ありなら接続確認を行う
 
+## 接続確認
+
+1. `src/online/firebase-config.example.js` を `src/online/firebase-config.js` にコピーする。
+2. Firebase ConsoleのWeb app設定値に置き換える。
+3. Realtime Databaseを作成する。
+4. AuthenticationでAnonymous providerを有効化する。
+5. ローカル起動後、タイトルの「オンライン対戦」を押す。
+6. 「接続OK。マッチング機能は次に実装します」と出れば、Firebase初期化と匿名ログインは成功。
+
+現在のSDK読み込みは、Firebase公式ドキュメントのブラウザモジュール形式に合わせて `https://www.gstatic.com/firebasejs/12.15.0/` を使う。
