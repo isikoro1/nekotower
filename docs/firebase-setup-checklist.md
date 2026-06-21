@@ -27,6 +27,10 @@ window.NEKO_TOWER_FIREBASE_CONFIG = {
 この値はフロントエンドに置く前提の識別情報です。
 ただし、Database Rulesを緩くすると危険です。
 
+実装上の配置先は `src/online/firebase-config.js` です。
+雛形として `src/online/firebase-config.example.js` をコミットしています。
+`src/online/firebase-config.js` は `.gitignore` に入っているためコミットしません。
+
 ## 初期ルール案
 
 実装時に調整する前提のたたき台です。
@@ -57,4 +61,10 @@ window.NEKO_TOWER_FIREBASE_CONFIG = {
 - Database URL
 - テスト用プロジェクトか本番用プロジェクトか
 - 公開するドメイン
+
+## 現在のリポジトリ状態
+
+- `src/online/firebase-config.example.js`: コミット済みの雛形
+- `src/online/firebase-config.js`: 実設定用。コミット禁止
+- `src/online/online-bootstrap.js`: Firebase未設定時はオンライン機能を無効化する安全スタブ
 

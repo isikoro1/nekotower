@@ -4,3 +4,4 @@ Thumbs.db
 node_modules/
 dist/
 .vite/
+src/online/firebase-config.js

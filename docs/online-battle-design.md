@@ -167,13 +167,16 @@ CPUとは表示しない。
 
 コミットする:
 
-- `src/firebase-config.example.js`
+- `src/online/firebase-config.example.js`
 
 コミットしない:
 
-- `src/firebase-config.js`
+- `src/online/firebase-config.js`
 
-`src/firebase-config.js` が存在しない場合、オンライン対戦は無効にする。
+`src/online/firebase-config.js` が存在しない場合、オンライン対戦は無効にする。
+
+現在は `src/online/online-bootstrap.js` が `window.NekoTowerOnline` を作る。
+Firebase設定がない場合は `status: "disabled"` になり、既存ソロゲームには影響しない。
 
 ## Database Rules方針
 
@@ -191,4 +194,3 @@ CPUとは表示しない。
 4. 片方を閉じて自動継続するか確認。
 5. 混雑制限の表示確認。
 6. GitHub Pages上でスマホ2台テスト。
-
