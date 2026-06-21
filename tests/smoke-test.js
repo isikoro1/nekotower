@@ -192,6 +192,12 @@ setTimeout(() => {
   if (element("titleMenu").hidden || !element("howToPanel").hidden) {
     throw new Error("how-to panel did not return to title menu");
   }
+  if (!element("onlineBattleBtn").disabled) {
+    throw new Error("online battle button should be disabled without Firebase config");
+  }
+  if (!element("onlineStatus").textContent.includes("準備中")) {
+    throw new Error(`online status should explain disabled state; status=${element("onlineStatus").textContent}`);
+  }
   for (const stage of ["bowl", "platform", "tower", "bottle"]) {
     context.__test.reset(stage);
     const staticBodies = Matter.Composite.allBodies(context.__test.physics.engine.world).filter((body) => body.isStatic);

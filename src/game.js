@@ -14,6 +14,8 @@ const stageBowlBtn = document.querySelector("#stageBowlBtn");
 const stagePlatformBtn = document.querySelector("#stagePlatformBtn");
 const stageTowerBtn = document.querySelector("#stageTowerBtn");
 const stageBottleBtn = document.querySelector("#stageBottleBtn");
+const onlineBattleBtn = document.querySelector("#onlineBattleBtn");
+const onlineStatusEl = document.querySelector("#onlineStatus");
 const howToBtn = document.querySelector("#howToBtn");
 const howToBackBtn = document.querySelector("#howToBackBtn");
 const retryBtn = document.querySelector("#retryBtn");
@@ -477,6 +479,30 @@ function updateHud() {
   hudScoreEl.textContent = state.score;
   hudBestEl.textContent = state.best;
   hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
+}
+
+function updateOnlineEntry() {
+  const online = window.NekoTowerOnline;
+  if (!onlineBattleBtn || !onlineStatusEl) return;
+  if (!online?.isEnabled?.()) {
+    onlineBattleBtn.disabled = true;
+    onlineStatusEl.textContent = "オンライン対戦は準備中です";
+    return;
+  }
+  onlineBattleBtn.disabled = false;
+  onlineStatusEl.textContent = "オンライン対戦を開始できます";
+}
+
+function startOnlineBattle() {
+  const online = window.NekoTowerOnline;
+  if (!online?.isEnabled?.()) {
+    updateOnlineEntry();
+    return;
+  }
+  onlineStatusEl.textContent = "マッチング準備中...";
+  online.startMatchmaking().catch(() => {
+    onlineStatusEl.textContent = "オンライン対戦はまだ準備中です";
+  });
 }
 
 function dropActive() {
@@ -1021,6 +1047,7 @@ stageBowlBtn.addEventListener("click", () => reset("bowl"));
 stagePlatformBtn.addEventListener("click", () => reset("platform"));
 stageTowerBtn.addEventListener("click", () => reset("tower"));
 stageBottleBtn.addEventListener("click", () => reset("bottle"));
+onlineBattleBtn.addEventListener("click", startOnlineBattle);
 howToBtn.addEventListener("click", showHowTo);
 howToBackBtn.addEventListener("click", showTitleMenu);
 retryBtn.addEventListener("click", () => reset(state.stage));
@@ -1037,6 +1064,7 @@ loadImages().then((images) => {
   populateTitleCats(images);
   reset("bowl");
   showTitle();
+  updateOnlineEntry();
   requestAnimationFrame(loop);
 });
 

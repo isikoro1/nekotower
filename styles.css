@@ -194,6 +194,26 @@ canvas {
   width: min(390px, 100%);
 }
 
+.online-button {
+  background: #fff7e8;
+  border-color: #e8b55f;
+}
+
+.online-button:disabled {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: #c9d7dd;
+  color: #708189;
+  cursor: not-allowed;
+}
+
+.online-status {
+  color: #52646b;
+  font-size: 13px;
+  line-height: 1.35;
+  min-height: 18px;
+  width: min(390px, 100%);
+}
+
 .howto-panel h3 {
   font-size: 26px;
   line-height: 1;
