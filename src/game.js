@@ -499,12 +499,22 @@ function startOnlineBattle() {
     updateOnlineEntry();
     return;
   }
-  onlineStatusEl.textContent = "オンライン接続を確認中...";
+  onlineStatusEl.textContent = "対戦相手を待っています...";
   online.startMatchmaking().catch(() => {
     onlineStatusEl.textContent = "オンライン接続に失敗しました";
   }).then((result) => {
     if (!result) return;
-    onlineStatusEl.textContent = "接続OK。マッチング機能は次に実装します";
+    if (result.status === "matched") {
+      onlineStatusEl.textContent = "マッチしました。対戦同期は次に実装します";
+    } else if (result.status === "waiting") {
+      onlineStatusEl.textContent = "対戦相手を待っています";
+    } else if (result.status === "full") {
+      onlineStatusEl.textContent = "ただいま混雑中です。少し待ってください";
+    } else if (result.status === "timeout") {
+      onlineStatusEl.textContent = "マッチングがタイムアウトしました";
+    } else {
+      onlineStatusEl.textContent = "接続OK。マッチングを確認しました";
+    }
   });
 }
 

@@ -178,7 +178,8 @@ CPUとは表示しない。
 現在は `src/online/online-bootstrap.js` が `window.NekoTowerOnline` を作る。
 Firebase設定がない場合は `status: "disabled"` になり、既存ソロゲームには影響しない。
 Firebase設定がある場合は、匿名ログインとRealtime Database参照の作成だけを行う。
-マッチング、ルーム作成、同期は次の段階で実装する。
+現在は、待機キュー登録、2人目とのマッチ、ルーム作成まで行う。
+対戦画面同期は次の段階で実装する。
 
 ## Database Rules方針
 
