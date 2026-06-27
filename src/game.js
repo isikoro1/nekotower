@@ -78,6 +78,7 @@ const state = {
   stage: "bowl",
   screen: "title",
   gameOver: false,
+  matchmakingActive: false,
   lastDropAt: 0,
   cameraY: 0,
   targetCameraY: 0,
@@ -617,6 +618,8 @@ function updateHud() {
     } else {
       hudTurnEl.textContent = state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番";
     }
+  } else if (state.matchmakingActive) {
+    hudTurnEl.textContent = "マッチ待ち";
   } else {
     hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
   }
@@ -640,11 +643,19 @@ async function startOnlineBattle() {
     updateOnlineEntry();
     return;
   }
+  if (state.matchmakingActive || state.online.active) return;
+  reset("bowl");
+  state.matchmakingActive = true;
+  updateHud();
   onlineStatusEl.textContent = "対戦相手を待っています...";
   online.startMatchmaking().catch(() => {
+    state.matchmakingActive = false;
+    updateHud();
     onlineStatusEl.textContent = "オンライン接続に失敗しました";
   }).then((result) => {
     if (!result) return;
+    state.matchmakingActive = false;
+    updateHud();
     if (result.status === "matched") {
       startOnlineSession(result).catch(() => {
         onlineStatusEl.textContent = "オンライン対戦の開始に失敗しました";
@@ -1086,6 +1097,7 @@ function showHowTo() {
 
 function showTitle() {
   clearOnlineSession();
+  state.matchmakingActive = false;
   gameOverTitleEl.textContent = "GAME OVER";
   clearResultTone();
   state.screen = "title";
@@ -1099,10 +1111,12 @@ function showTitle() {
 
 function retryGame() {
   if (!state.online.active) {
+    state.matchmakingActive = false;
     reset(state.stage);
     return;
   }
   clearOnlineSession(false);
+  state.matchmakingActive = false;
   state.screen = "title";
   state.gameOver = false;
   state.aiming = false;
