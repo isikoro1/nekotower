@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ねこタワー</title>
-    <link rel="stylesheet" href="./styles.css?v=20260613-3" />
+    <link rel="stylesheet" href="./styles.css?v=20260627-online-1" />
   </head>
   <body>
     <main class="app">
@@ -12,8 +12,7 @@
         <canvas id="game" width="900" height="1200" aria-label="cat bowl physics game"></canvas>
 
         <div class="game-hud" aria-label="game status">
-          <span>Score <strong id="hudScore">0</strong></span>
-          <span>Best <strong id="hudBest">0</strong></span>
+          <span><strong id="hudScore">1</strong>匹目</span>
           <span id="hudTurn">Solo</span>
         </div>
 
@@ -27,6 +26,8 @@
               <button id="stageTowerBtn" type="button">キャットタワー</button>
               <button id="stageBottleBtn" type="button">猫瓶</button>
             </div>
+            <button id="onlineBattleBtn" class="wide-button online-button" type="button">オンライン対戦</button>
+            <p id="onlineStatus" class="online-status" aria-live="polite"></p>
             <button id="howToBtn" class="wide-button" type="button">遊び方</button>
           </div>
           <div class="howto-panel" id="howToPanel" hidden>
@@ -55,7 +56,7 @@
         </section>
 
         <section class="overlay game-over-screen" id="gameOverScreen" aria-label="game over" hidden>
-          <h2>GAME OVER</h2>
+          <h2 id="gameOverTitle">GAME OVER</h2>
           <p id="gameOverMessage">終了</p>
           <button id="retryBtn" type="button">リトライ</button>
           <button id="toTitleBtn" type="button">タイトルへ</button>
@@ -69,12 +70,14 @@
       </section>
     </main>
 
-    <script src="./vendor/decomp.min.js?v=20260613-3"></script>
-    <script src="./vendor/matter.min.js?v=20260613-3"></script>
-    <script src="./src/cats.js?v=20260613-3"></script>
-    <script src="./src/cat-shapes.js?v=20260613-3"></script>
-    <script src="./src/cat-contours.js?v=20260613-3"></script>
-    <script src="./src/cat-hitboxes.js?v=20260613-3"></script>
-    <script src="./src/game.js?v=20260613-3"></script>
+    <script src="./vendor/decomp.min.js?v=20260621-3"></script>
+    <script src="./vendor/matter.min.js?v=20260621-3"></script>
+    <script src="./src/cats.js?v=20260621-3"></script>
+    <script src="./src/cat-shapes.js?v=20260621-3"></script>
+    <script src="./src/cat-contours.js?v=20260621-3"></script>
+    <script src="./src/cat-hitboxes.js?v=20260621-3"></script>
+    <script src="./src/online/firebase-config.js?v=20260621-3"></script>
+    <script src="./src/online/online-bootstrap.js?v=20260627-online-3"></script>
+    <script src="./src/game.js?v=20260627-online-19"></script>
   </body>
 </html>

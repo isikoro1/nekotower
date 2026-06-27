@@ -2,18 +2,20 @@
 const ctx = canvas.getContext("2d");
 
 const hudScoreEl = document.querySelector("#hudScore");
-const hudBestEl = document.querySelector("#hudBest");
 const hudTurnEl = document.querySelector("#hudTurn");
 const titleCatsEl = document.querySelector("#titleCats");
 const titleMenuEl = document.querySelector("#titleMenu");
 const howToPanelEl = document.querySelector("#howToPanel");
 const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
+const gameOverTitleEl = document.querySelector("#gameOverTitle");
 const gameOverMessageEl = document.querySelector("#gameOverMessage");
 const stageBowlBtn = document.querySelector("#stageBowlBtn");
 const stagePlatformBtn = document.querySelector("#stagePlatformBtn");
 const stageTowerBtn = document.querySelector("#stageTowerBtn");
 const stageBottleBtn = document.querySelector("#stageBottleBtn");
+const onlineBattleBtn = document.querySelector("#onlineBattleBtn");
+const onlineStatusEl = document.querySelector("#onlineStatus");
 const howToBtn = document.querySelector("#howToBtn");
 const howToBackBtn = document.querySelector("#howToBackBtn");
 const retryBtn = document.querySelector("#retryBtn");
@@ -43,6 +45,12 @@ const SPIN_CURVE_RAMP_MS = 1200;
 const SPAWN_ZOOM_HOLD_MS = 700;
 const SPAWN_ZOOM_SHRINK_MS = 620;
 const SPAWN_ZOOM_SCALE = 3.4;
+const ONLINE_AIM_SYNC_MS = 90;
+const ONLINE_SNAPSHOT_MS = 40;
+const CAT_RECENT_LIMIT = 18;
+const ONLINE_TURN_LIMIT_MS = 15000;
+const ONLINE_HEARTBEAT_MS = 3000;
+const ONLINE_DISCONNECT_MS = 9000;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -70,13 +78,40 @@ const state = {
   stage: "bowl",
   screen: "title",
   gameOver: false,
+  matchmakingActive: false,
   lastDropAt: 0,
   cameraY: 0,
   targetCameraY: 0,
   pointerX: null,
   spinVelocity: 0,
   spinInput: 0,
+  lastCatName: "",
+  recentCatNames: [],
+  catBag: [],
   keys: new Set(),
+  online: {
+    active: false,
+    roomId: "",
+    uid: "",
+    hostUid: "",
+    turnUid: "",
+    turnNo: 1,
+    turnStartedAt: 0,
+    players: {},
+    lastInputs: {},
+    roomUnsubscribe: null,
+    inputUnsubscribe: null,
+    remoteDropActive: false,
+    finished: false,
+    turnNoticeText: "",
+    turnNoticeAt: 0,
+    lastAimSyncAt: 0,
+    lastSnapshotAt: 0,
+    localTurnSetupPublished: 0,
+    lastSnapshotKey: "",
+    pendingDropTurnNo: 0,
+    lastHeartbeatAt: 0,
+  },
 };
 
 const MEOW_SOUNDS = [
@@ -102,7 +137,6 @@ function getBest(stage) {
 }
 
 state.best = getBest(state.stage);
-hudBestEl.textContent = state.best;
 
 function rand(min, max) {
   return min + Math.random() * (max - min);
@@ -112,8 +146,30 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function timeValue(value, fallback = Date.now()) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : fallback;
+}
+
 function easeOutCubic(value) {
   return 1 - Math.pow(1 - value, 3);
+}
+
+function setResultTone(tone = "") {
+  gameOverScreen.classList?.toggle("win", tone === "win");
+  gameOverScreen.classList?.toggle("lose", tone === "lose");
+}
+
+function hasResultTone(tone) {
+  return Boolean(gameOverScreen.classList?.contains(tone));
+}
+
+function clearResultTone() {
+  setResultTone("");
+}
+
+function currentCatNumber() {
+  return state.score + 1;
 }
 
 function playMeow() {
@@ -331,8 +387,44 @@ function makeCatBody(cat) {
   return body;
 }
 
-function makeCat() {
-  const asset = state.loadedCats[Math.floor(Math.random() * state.loadedCats.length)];
+function findCatAsset(name) {
+  return state.loadedCats.find((asset) => asset.name === name) || null;
+}
+
+function refillCatBag() {
+  const recent = new Set(state.recentCatNames);
+  const current = new Set(state.cats.map((cat) => cat.name));
+  state.catBag = state.loadedCats
+    .filter((asset) => asset.name !== state.lastCatName && !recent.has(asset.name) && !current.has(asset.name))
+    .sort(() => Math.random() - 0.5)
+    .map((asset) => asset.name);
+  if (state.catBag.length === 0) {
+    state.recentCatNames = state.lastCatName ? [state.lastCatName] : [];
+    state.catBag = state.loadedCats
+      .filter((asset) => asset.name !== state.lastCatName && !current.has(asset.name))
+      .sort(() => Math.random() - 0.5)
+      .map((asset) => asset.name);
+  }
+  if (state.catBag.length === 0) {
+    state.catBag = state.loadedCats
+      .filter((asset) => asset.name !== state.lastCatName)
+      .sort(() => Math.random() - 0.5)
+      .map((asset) => asset.name);
+  }
+}
+
+function chooseCatAsset() {
+  if (state.catBag.length === 0) refillCatBag();
+  const name = state.catBag.shift();
+  return findCatAsset(name) || state.loadedCats[Math.floor(Math.random() * state.loadedCats.length)];
+}
+
+function chooseCatName() {
+  return chooseCatAsset()?.name || state.loadedCats[0]?.name || "";
+}
+
+function makeCat(assetName = "") {
+  const asset = findCatAsset(assetName) || findCatAsset(chooseCatName()) || state.loadedCats[0];
   const targetArea = rand(36000, 43000);
   const aspect = clamp(asset.img.naturalWidth / asset.img.naturalHeight, 0.62, 1.65);
   const contourArea = contourBoundsArea(asset.name);
@@ -359,11 +451,22 @@ function makeCat() {
     curveSpin: 0,
     droppedAt: 0,
     spawnedAt: performance.now(),
+    onlineTurnNo: state.online.turnNo,
+    renderFrom: null,
+    renderTo: null,
+    renderSyncAt: 0,
   };
   cat.body = makeCatBody(cat);
   Body.setStatic(cat.body, true);
   Composite.add(physics.engine.world, cat.body);
   return cat;
+}
+
+function rememberCatName(name) {
+  if (!name) return;
+  state.lastCatName = name;
+  state.recentCatNames = [name, ...state.recentCatNames.filter((recentName) => recentName !== name)].slice(0, CAT_RECENT_LIMIT);
+  state.catBag = state.catBag.filter((queuedName) => queuedName !== name);
 }
 
 function makeWall(x, y, width, height, angle) {
@@ -406,11 +509,11 @@ function stageBodies(stage) {
 
   if (stage === "bottle") {
     return [
-      wallFromSegment({ x: 310, y: 1050 }, { x: 252, y: 710 }, 34),
-      wallFromSegment({ x: 590, y: 1050 }, { x: 648, y: 710 }, 34),
-      wallFromSegment({ x: 310, y: 1050 }, { x: 590, y: 1050 }, 36),
-      wallFromSegment({ x: 252, y: 710 }, { x: 368, y: 505 }, 30),
-      wallFromSegment({ x: 648, y: 710 }, { x: 532, y: 505 }, 30),
+      wallFromSegment({ x: 300, y: 1015 }, { x: 225, y: 740 }, 34),
+      wallFromSegment({ x: 600, y: 1015 }, { x: 675, y: 740 }, 34),
+      wallFromSegment({ x: 300, y: 1015 }, { x: 600, y: 1015 }, 36),
+      wallFromSegment({ x: 225, y: 740 }, { x: 330, y: 610 }, 30),
+      wallFromSegment({ x: 675, y: 740 }, { x: 570, y: 610 }, 30),
     ];
   }
 
@@ -444,8 +547,38 @@ function buildWorld() {
   });
 }
 
-function reset(stage = state.stage) {
+function clearOnlineSession(resetStatus = true) {
+  state.online.roomUnsubscribe?.();
+  state.online.inputUnsubscribe?.();
+  state.online = {
+    active: false,
+    roomId: "",
+    uid: "",
+    hostUid: "",
+    turnUid: "",
+    turnNo: 1,
+    turnStartedAt: 0,
+    players: {},
+    lastInputs: {},
+    roomUnsubscribe: null,
+    inputUnsubscribe: null,
+    remoteDropActive: false,
+    finished: false,
+    turnNoticeText: "",
+    turnNoticeAt: 0,
+    lastAimSyncAt: 0,
+    lastSnapshotAt: 0,
+    localTurnSetupPublished: 0,
+    lastSnapshotKey: "",
+    pendingDropTurnNo: 0,
+    lastHeartbeatAt: 0,
+  };
+  if (resetStatus) updateOnlineEntry();
+}
+
+function reset(stage = state.stage, options = {}) {
   if (physics.engine) Events.off(physics.engine);
+  if (!options.keepOnline) clearOnlineSession(false);
   state.stage = stage;
   state.best = getBest(stage);
   buildWorld();
@@ -460,36 +593,425 @@ function reset(stage = state.stage) {
   state.targetCameraY = 0;
   state.spinVelocity = 0;
   state.spinInput = 0;
+  state.lastCatName = "";
+  state.recentCatNames = [];
+  state.catBag = [];
   titleScreen.hidden = true;
   gameOverScreen.hidden = true;
   spawn();
   updateHud();
 }
 
-function spawn() {
-  state.active = makeCat();
+function spawn(assetName = "") {
+  state.active = makeCat(assetName);
+  rememberCatName(state.active.name);
   state.cats.push(state.active);
   state.aiming = true;
   playMeow();
 }
 
 function updateHud() {
-  hudScoreEl.textContent = state.score;
-  hudBestEl.textContent = state.best;
-  hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
+  hudScoreEl.textContent = currentCatNumber();
+  if (state.online.active) {
+    if (state.online.finished) {
+      hudTurnEl.textContent = "Online";
+    } else {
+      hudTurnEl.textContent = state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番";
+    }
+  } else if (state.matchmakingActive) {
+    hudTurnEl.textContent = "マッチ待ち";
+  } else {
+    hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
+  }
 }
 
-function dropActive() {
+function updateOnlineEntry() {
+  const online = window.NekoTowerOnline;
+  if (!onlineBattleBtn || !onlineStatusEl) return;
+  if (!online?.isEnabled?.()) {
+    onlineBattleBtn.disabled = true;
+    onlineStatusEl.textContent = "オンライン対戦は準備中です";
+    return;
+  }
+  onlineBattleBtn.disabled = false;
+  onlineStatusEl.textContent = "オンライン接続を確認できます";
+}
+
+async function startOnlineBattle() {
+  const online = window.NekoTowerOnline;
+  if (!online?.isEnabled?.()) {
+    updateOnlineEntry();
+    return;
+  }
+  if (state.matchmakingActive || state.online.active) return;
+  reset("bowl");
+  state.matchmakingActive = true;
+  updateHud();
+  onlineStatusEl.textContent = "対戦相手を待っています...";
+  online.startMatchmaking().catch(() => {
+    state.matchmakingActive = false;
+    updateHud();
+    onlineStatusEl.textContent = "オンライン接続に失敗しました";
+  }).then((result) => {
+    if (!result) return;
+    state.matchmakingActive = false;
+    updateHud();
+    if (result.status === "matched") {
+      startOnlineSession(result).catch(() => {
+        onlineStatusEl.textContent = "オンライン対戦の開始に失敗しました";
+      });
+    } else if (result.status === "waiting") {
+      onlineStatusEl.textContent = "対戦相手を待っています";
+    } else if (result.status === "full") {
+      onlineStatusEl.textContent = "ただいま混雑中です。少し待ってください";
+    } else if (result.status === "timeout") {
+      onlineStatusEl.textContent = "マッチングがタイムアウトしました";
+    } else {
+      onlineStatusEl.textContent = "接続OK。マッチングを確認しました";
+    }
+  });
+}
+
+async function startOnlineSession(match) {
+  const online = window.NekoTowerOnline;
+  const client = await online.initialize();
+  state.online.active = true;
+  state.online.roomId = match.roomId;
+  state.online.uid = client.user.uid;
+  state.online.lastInputs = {};
+  onlineStatusEl.textContent = "マッチしました。対戦開始";
+  reset("bowl", { keepOnline: true });
+
+  state.online.roomUnsubscribe = await online.watchRoom(match.roomId, (room) => {
+    if (!room) return;
+    const previousTurnUid = state.online.turnUid;
+    state.online.hostUid = room.hostUid || "";
+    state.online.turnUid = room.turnUid || "";
+    state.online.turnNo = Number(room.turnNo || 1);
+    state.online.turnStartedAt = timeValue(room.turnStartedAt);
+    state.online.players = room.players || {};
+    if (room.stage && room.stage !== state.stage && STAGES[room.stage]) {
+      reset(room.stage, { keepOnline: true });
+    }
+    if (state.online.turnUid && state.online.turnUid !== previousTurnUid) {
+      state.online.pendingDropTurnNo = 0;
+      showTurnNotice(state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番");
+    }
+    syncOnlineTurnSetup(room);
+    if (room.status === "finished") {
+      showOnlineResult(room);
+      return;
+    }
+    applyOnlineSnapshot(room.snapshot);
+    if (room.status === "matching") {
+      online.updateRoom(match.roomId, {
+        status: "playing",
+        updatedAt: Date.now(),
+      }).catch(() => {});
+    }
+    updateHud();
+  });
+
+  state.online.inputUnsubscribe = await online.watchInputs(match.roomId, (inputs) => {
+    handleOnlineInputs(inputs);
+  });
+}
+
+function onlinePlayerUids() {
+  return Object.keys(state.online.players || {}).sort((a, b) => {
+    if (a === state.online.hostUid) return -1;
+    if (b === state.online.hostUid) return 1;
+    return a.localeCompare(b);
+  });
+}
+
+function nextOnlineTurnUid() {
+  const players = onlinePlayerUids();
+  if (players.length < 2) return state.online.uid;
+  const index = players.indexOf(state.online.turnUid);
+  return players[(index + 1 + players.length) % players.length];
+}
+
+function isOnlineMyTurn() {
+  return !state.online.active || state.online.turnUid === state.online.uid;
+}
+
+function isOnlineHost() {
+  return state.online.active && state.online.hostUid === state.online.uid;
+}
+
+function isPlayerDisconnected(uid) {
+  if (!uid || uid === state.online.uid) return false;
+  const player = state.online.players?.[uid];
+  return Date.now() - timeValue(player?.lastSeenAt, 0) > ONLINE_DISCONNECT_MS;
+}
+
+function isOnlineAuthority() {
+  return isOnlineHost() || (state.online.active && isPlayerDisconnected(state.online.hostUid));
+}
+
+function onlineName(uid) {
+  if (!state.online.active) return "";
+  return uid === state.online.uid ? "あなた" : "相手";
+}
+
+function showTurnNotice(text) {
+  state.online.turnNoticeText = text;
+  state.online.turnNoticeAt = performance.now();
+}
+
+function handleOnlineInputs(inputs) {
+  if (!state.online.active || state.gameOver) return;
+  for (const [uid, input] of Object.entries(inputs || {})) {
+    if (uid === state.online.uid) continue;
+    if (state.aiming && state.online.turnUid === uid && state.active && !state.active.dropped) {
+      applyRemoteAim(input);
+    }
+    const dropRequestedAt = Number(input?.dropRequestedAt || 0);
+    if (!dropRequestedAt || state.online.lastInputs[uid] === dropRequestedAt) continue;
+    state.online.lastInputs[uid] = dropRequestedAt;
+    if (state.aiming && state.online.turnUid === uid) {
+      applyRemoteAim(input);
+      state.online.remoteDropActive = true;
+      dropActive("remote");
+    }
+  }
+}
+
+function syncOnlineTurnSetup(room) {
+  if (!state.online.active || !state.active || state.gameOver) return;
+  const turnNo = Number(room.turnNo || 1);
+  const currentCatName = room.currentCatName || "";
+  if (currentCatName && (state.active.name !== currentCatName || state.active.onlineTurnNo !== turnNo)) {
+    replaceActiveCat(currentCatName, turnNo);
+    applyRemoteAim({
+      aimX: Number(room.currentAimX || W / 2),
+      angle: Number(room.currentAngle || 0),
+      spinVelocity: 0,
+    });
+    return;
+  }
+  if (!currentCatName && state.online.turnUid === state.online.uid && state.online.localTurnSetupPublished !== turnNo) {
+    state.online.localTurnSetupPublished = turnNo;
+    publishOnlineTurnSetup();
+  }
+}
+
+function replaceActiveCat(catName, turnNo) {
+  if (!state.active || state.active.dropped) return;
+  Composite.remove(physics.engine.world, state.active.body);
+  const index = state.cats.indexOf(state.active);
+  if (index >= 0) state.cats.splice(index, 1);
+  state.active = makeCat(catName);
+  state.active.onlineTurnNo = turnNo;
+  rememberCatName(state.active.name);
+  state.cats.push(state.active);
+}
+
+function publishOnlineTurnSetup() {
+  if (!state.online.active || !state.active) return;
+  window.NekoTowerOnline?.updateRoom?.(state.online.roomId, {
+    currentCatName: state.active.name,
+    currentAimX: state.active.body.position.x,
+    currentAngle: state.active.body.angle,
+    updatedAt: Date.now(),
+  }).catch(() => {});
+}
+
+function applyRemoteAim(input = {}) {
+  if (!state.active || state.active.dropped) return;
+  const x = clamp(Number(input.aimX || W / 2), AIM_MIN_X, AIM_MAX_X);
+  const angle = Number.isFinite(Number(input.angle)) ? Number(input.angle) : state.active.body.angle;
+  Body.setPosition(state.active.body, { x, y: state.targetCameraY + 150 });
+  Body.setAngle(state.active.body, angle);
+  state.spinVelocity = clamp(Number(input.spinVelocity || 0), -ROT_MAX, ROT_MAX);
+}
+
+function catSnapshot(cat) {
+  return {
+    name: cat.name,
+    x: Math.round(cat.body.position.x * 10) / 10,
+    y: Math.round(cat.body.position.y * 10) / 10,
+    angle: Math.round(cat.body.angle * 10000) / 10000,
+    vx: Math.round(cat.body.velocity.x * 1000) / 1000,
+    vy: Math.round(cat.body.velocity.y * 1000) / 1000,
+    angularVelocity: Math.round(cat.body.angularVelocity * 10000) / 10000,
+    dropped: Boolean(cat.dropped),
+    counted: Boolean(cat.counted),
+    stableFrames: cat.stableFrames,
+  };
+}
+
+function publishOnlineSnapshot(force = false) {
+  if (!isOnlineAuthority() || state.screen !== "playing") return;
+  const now = performance.now();
+  if (!force && now - state.online.lastSnapshotAt < ONLINE_SNAPSHOT_MS) return;
+  state.online.lastSnapshotAt = now;
+  window.NekoTowerOnline?.updateRoom?.(state.online.roomId, {
+    snapshot: {
+      updatedAt: Date.now(),
+      turnNo: state.online.turnNo,
+      turnUid: state.online.turnUid,
+      score: state.score,
+      aiming: state.aiming,
+      cameraY: Math.round(state.cameraY * 10) / 10,
+      targetCameraY: Math.round(state.targetCameraY * 10) / 10,
+      activeIndex: Math.max(0, state.cats.indexOf(state.active)),
+      cats: state.cats.map(catSnapshot),
+    },
+    updatedAt: Date.now(),
+  }).catch(() => {});
+}
+
+function applyOnlineSnapshot(snapshot) {
+  if (!state.online.active || isOnlineAuthority() || !snapshot?.cats?.length) return;
+  if (state.online.turnUid === state.online.uid && state.aiming && state.active && !state.active.dropped) return;
+  if (
+    state.online.pendingDropTurnNo &&
+    Number(snapshot.turnNo || 0) === state.online.pendingDropTurnNo &&
+    snapshot.aiming &&
+    !snapshot.cats[Number(snapshot.activeIndex || 0)]?.dropped
+  ) {
+    return;
+  }
+  const key = `${snapshot.updatedAt || ""}:${snapshot.cats.length}:${snapshot.activeIndex}`;
+  if (key === state.online.lastSnapshotKey) return;
+  state.online.lastSnapshotKey = key;
+
+  while (state.cats.length > snapshot.cats.length) {
+    const cat = state.cats.pop();
+    if (cat?.body) Composite.remove(physics.engine.world, cat.body);
+  }
+
+  for (let i = 0; i < snapshot.cats.length; i += 1) {
+    const data = snapshot.cats[i];
+    let cat = state.cats[i];
+    if (!cat || cat.name !== data.name) {
+      if (cat?.body) Composite.remove(physics.engine.world, cat.body);
+      cat = makeCat(data.name);
+      state.cats[i] = cat;
+      rememberCatName(cat.name);
+    }
+    const previousX = cat.renderTo?.x ?? cat.body.position.x;
+    const previousY = cat.renderTo?.y ?? cat.body.position.y;
+    const previousAngle = cat.renderTo?.angle ?? cat.body.angle;
+    Body.setStatic(cat.body, !data.dropped);
+    Body.setPosition(cat.body, { x: Number(data.x || W / 2), y: Number(data.y || state.targetCameraY + 150) });
+    Body.setAngle(cat.body, Number(data.angle || 0));
+    Body.setVelocity(cat.body, { x: Number(data.vx || 0), y: Number(data.vy || 0) });
+    Body.setAngularVelocity(cat.body, Number(data.angularVelocity || 0));
+    cat.renderFrom = { x: previousX, y: previousY, angle: previousAngle };
+    cat.renderTo = { x: cat.body.position.x, y: cat.body.position.y, angle: cat.body.angle };
+    cat.renderSyncAt = performance.now();
+    cat.dropped = Boolean(data.dropped);
+    cat.counted = Boolean(data.counted);
+    cat.stableFrames = Number(data.stableFrames || 0);
+  }
+
+  state.active = state.cats[Number(snapshot.activeIndex || 0)] || state.cats[state.cats.length - 1] || null;
+  state.score = Number(snapshot.score || 0);
+  state.aiming = Boolean(snapshot.aiming);
+  const activeData = snapshot.cats[Number(snapshot.activeIndex || 0)];
+  if (!state.aiming || activeData?.dropped || Number(snapshot.turnNo || 0) !== state.online.pendingDropTurnNo) {
+    state.online.pendingDropTurnNo = 0;
+  }
+  state.cameraY = Number(snapshot.cameraY || 0);
+  state.targetCameraY = Number(snapshot.targetCameraY || 0);
+  updateHud();
+}
+
+function syncOnlineAim(force = false) {
+  if (!state.online.active || state.online.turnUid !== state.online.uid || !state.active || !state.aiming) return;
+  const now = performance.now();
+  if (!force && now - state.online.lastAimSyncAt < ONLINE_AIM_SYNC_MS) return;
+  state.online.lastAimSyncAt = now;
+  window.NekoTowerOnline?.updateInput?.(state.online.roomId, state.online.uid, {
+    aimX: state.active.body.position.x,
+    angle: state.active.body.angle,
+    spinVelocity: state.spinVelocity,
+    updatedAt: Date.now(),
+  }).catch(() => {});
+}
+
+function syncOnlineHeartbeat() {
+  if (!state.online.active || state.online.finished) return;
+  const now = Date.now();
+  if (now - state.online.lastHeartbeatAt < ONLINE_HEARTBEAT_MS) return;
+  state.online.lastHeartbeatAt = now;
+  window.NekoTowerOnline?.updateRoom?.(state.online.roomId, {
+    [`players/${state.online.uid}/lastSeenAt`]: now,
+    [`players/${state.online.uid}/connected`]: true,
+    updatedAt: now,
+  }).catch(() => {});
+}
+
+function autoAimForTurn() {
+  if (!state.active || !state.aiming) return;
+  const direction = Math.sin((state.online.turnNo + 1) * 2.17);
+  const x = clamp(W / 2 + direction * 220, AIM_MIN_X, AIM_MAX_X);
+  const spin = clamp(Math.cos((state.online.turnNo + 3) * 1.73) * 0.08, -ROT_MAX, ROT_MAX);
+  Body.setPosition(state.active.body, { x, y: state.targetCameraY + 150 });
+  Body.setAngle(state.active.body, state.active.body.angle + spin);
+  state.spinVelocity = spin;
+}
+
+function updateOnlineTurnTimer() {
+  if (!state.online.active || state.online.finished || !isOnlineAuthority() || !state.aiming || !state.active) return;
+  const elapsed = Date.now() - state.online.turnStartedAt;
+  const disconnected = isPlayerDisconnected(state.online.turnUid);
+  if (elapsed < ONLINE_TURN_LIMIT_MS && !disconnected) return;
+  if (state.online.turnUid !== state.online.uid) {
+    autoAimForTurn();
+    state.online.remoteDropActive = true;
+    dropActive("remote");
+  } else {
+    dropActive("local");
+  }
+}
+
+function showOnlineResult(room) {
+  state.online.finished = true;
+  state.gameOver = true;
+  state.aiming = false;
+  state.screen = "gameover";
+  const didLose = room.loserUid === state.online.uid;
+  const title = didLose ? "YOU LOSE" : "YOU WIN!!";
+  const finalScore = Number(room.finalScore || room.snapshot?.score + 1 || currentCatNumber());
+  const message = didLose ? `${finalScore}匹目で負け。` : `相手が${finalScore}匹目で落としました。`;
+  setResultTone(didLose ? "lose" : "win");
+  gameOverTitleEl.textContent = title;
+  gameOverMessageEl.textContent = message;
+  gameOverScreen.hidden = false;
+  updateHud();
+}
+
+function finishOnlineLoss(loserUid = state.online.turnUid || state.online.uid) {
+  if (!state.online.active || state.online.finished) return;
+  const players = onlinePlayerUids();
+  const winnerUid = players.find((uid) => uid !== loserUid) || nextOnlineTurnUid();
+  window.NekoTowerOnline?.updateRoom?.(state.online.roomId, {
+    status: "finished",
+    updatedAt: Date.now(),
+    loserUid,
+    winnerUid,
+    finalScore: currentCatNumber(),
+    reason: "fell",
+  }).catch(() => {});
+}
+
+function dropActive(source = "local") {
   if (state.screen !== "playing" || !state.active || state.gameOver || !state.aiming) return;
+  if (source === "local" && !isOnlineMyTurn()) return;
+  if (source === "local" && state.online.active) syncOnlineAim(true);
   const body = state.active.body;
   Body.setStatic(body, false);
   Sleeping.set(body, false);
-  Body.setVelocity(body, { x: 0, y: 1.1 });
+  Body.setVelocity(body, { x: 0, y: 1.8 });
   const hasCurveSpin = Math.abs(state.spinVelocity) > 0.004;
   const spin = hasCurveSpin ? state.spinVelocity * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
   Body.setAngularVelocity(body, spin);
   state.active.curveSpin = hasCurveSpin ? spin : 0;
-  Body.setPosition(body, { x: body.position.x, y: body.position.y + 1 });
+  Body.setPosition(body, { x: body.position.x, y: body.position.y + 3 });
   state.active.dropped = true;
   state.active.droppedAt = performance.now();
   state.active.stableFrames = 0;
@@ -498,6 +1020,19 @@ function dropActive() {
   state.spinVelocity = 0;
   state.lastDropAt = performance.now();
   updateHud();
+  if (state.online.active) {
+    if (source === "local") state.online.pendingDropTurnNo = state.online.turnNo;
+    if (isOnlineHost()) publishOnlineSnapshot(true);
+  }
+  if (source === "local" && state.online.active) {
+    window.NekoTowerOnline?.updateInput?.(state.online.roomId, state.online.uid, {
+      aimX: body.position.x,
+      angle: body.angle,
+      spinVelocity: spin,
+      dropRequestedAt: Date.now(),
+      updatedAt: Date.now(),
+    }).catch(() => {});
+  }
 }
 
 function nextTurn() {
@@ -510,15 +1045,41 @@ function nextTurn() {
       localStorage.setItem(bestKey(state.stage), String(state.best));
     }
   }
+  if (state.online.active) {
+    if (isOnlineAuthority()) {
+      const nextCatName = chooseCatName();
+      window.NekoTowerOnline?.updateRoom?.(state.online.roomId, {
+        turnUid: nextOnlineTurnUid(),
+        turnNo: state.online.turnNo + 1,
+        turnStartedAt: Date.now(),
+        currentCatName: nextCatName,
+        currentAimX: W / 2,
+        currentAngle: 0,
+        updatedAt: Date.now(),
+      }).catch(() => {});
+      spawn(nextCatName);
+    } else {
+      spawn();
+    }
+    state.online.remoteDropActive = false;
+    updateHud();
+    return;
+  }
   spawn();
   updateHud();
 }
 
 function lose(cat) {
+  if (state.online.active) finishOnlineLoss(state.online.turnUid || state.online.uid);
   state.gameOver = true;
   state.aiming = false;
   state.screen = "gameover";
-  const message = `終了。${state.score}匹入りました。Retryでもう一回。`;
+  const didLose = !state.online.active || state.online.turnUid === state.online.uid;
+  setResultTone(state.online.active ? (didLose ? "lose" : "win") : "");
+  gameOverTitleEl.textContent = state.online.active ? (didLose ? "YOU LOSE" : "YOU WIN!!") : "GAME OVER";
+  const message = state.online.active
+    ? (didLose ? `${currentCatNumber()}匹目で負け。` : `相手が${currentCatNumber()}匹目で落としました。`)
+    : `終了。${state.score}匹入りました。Retryでもう一回。`;
   gameOverMessageEl.textContent = message;
   gameOverScreen.hidden = false;
   updateHud();
@@ -535,6 +1096,10 @@ function showHowTo() {
 }
 
 function showTitle() {
+  clearOnlineSession();
+  state.matchmakingActive = false;
+  gameOverTitleEl.textContent = "GAME OVER";
+  clearResultTone();
   state.screen = "title";
   state.gameOver = false;
   state.aiming = false;
@@ -544,8 +1109,29 @@ function showTitle() {
   updateHud();
 }
 
+function retryGame() {
+  if (!state.online.active) {
+    state.matchmakingActive = false;
+    reset(state.stage);
+    return;
+  }
+  clearOnlineSession(false);
+  state.matchmakingActive = false;
+  state.screen = "title";
+  state.gameOver = false;
+  state.aiming = false;
+  gameOverTitleEl.textContent = "GAME OVER";
+  clearResultTone();
+  gameOverScreen.hidden = true;
+  titleScreen.hidden = false;
+  showTitleMenu();
+  updateOnlineEntry();
+  startOnlineBattle();
+}
+
 function aimActive(dt) {
   if (state.screen !== "playing" || !state.aiming || !state.active) return;
+  if (state.online.active && state.online.turnUid !== state.online.uid) return;
   const body = state.active.body;
   const move = (state.keys.has("d") || state.keys.has("D") ? 1 : 0) - (state.keys.has("a") || state.keys.has("A") ? 1 : 0);
   const rot =
@@ -564,6 +1150,7 @@ function aimActive(dt) {
   }
   Body.setPosition(body, { x: targetX, y: state.targetCameraY + 150 });
   Body.setAngle(body, body.angle + state.spinVelocity);
+  syncOnlineAim();
 }
 
 function applySpinCurveForces() {
@@ -625,7 +1212,26 @@ function updateCamera() {
 function step(dt) {
   if (state.screen !== "playing" || state.gameOver) return;
 
+  syncOnlineHeartbeat();
+  updateOnlineTurnTimer();
+  if (state.online.active) updateHud();
+
   aimActive(dt);
+
+  if (state.online.active && !isOnlineAuthority()) {
+    if (state.online.pendingDropTurnNo && state.active?.dropped) {
+      const fixed = 1000 / 120;
+      physics.accumulator = Math.min(physics.accumulator + dt * 1000, 80);
+      while (physics.accumulator >= fixed) {
+        applySpinCurveForces();
+        Engine.update(physics.engine, fixed);
+        physics.accumulator -= fixed;
+      }
+      updateStability();
+      updateCamera();
+    }
+    return;
+  }
 
   const fixed = 1000 / 120;
   physics.accumulator = Math.min(physics.accumulator + dt * 1000, 80);
@@ -636,20 +1242,27 @@ function step(dt) {
   }
   updateStability();
   updateCamera();
+  publishOnlineSnapshot();
 
-  for (const cat of state.cats) {
-    const pos = cat.body.position;
-    if (cat.dropped && (pos.y > STAGES[state.stage].failY || pos.x < -190 || pos.x > W + 190)) {
-      lose(cat);
-      return;
+  if (!state.online.active || isOnlineAuthority()) {
+    for (const cat of state.cats) {
+      const pos = cat.body.position;
+      if (cat.dropped && (pos.y > STAGES[state.stage].failY || pos.x < -190 || pos.x > W + 190)) {
+        lose(cat);
+        publishOnlineSnapshot(true);
+        return;
+      }
     }
   }
 
-  if (!state.aiming && state.active && performance.now() - state.lastDropAt > 900) {
+  if ((!state.online.active || isOnlineAuthority()) && !state.aiming && state.active && performance.now() - state.lastDropAt > 900) {
     const activeDropped = state.active.dropped && !state.active.body.isStatic;
     const activeMoved = state.active.body.position.y > state.targetCameraY + 190 || performance.now() - state.lastDropAt > 2600;
     const allSlow = state.cats.every((cat) => !cat.dropped || cat.stableFrames > 18 || cat.body.isSleeping);
-    if (activeDropped && activeMoved && allSlow) nextTurn();
+    if (activeDropped && activeMoved && allSlow) {
+      nextTurn();
+      publishOnlineSnapshot(true);
+    }
   }
 }
 
@@ -690,23 +1303,23 @@ function drawStage() {
     ctx.strokeStyle = "rgba(82, 143, 164, 0.66)";
     ctx.lineWidth = 26;
     ctx.beginPath();
-    ctx.moveTo(310, 1050);
-    ctx.lineTo(252, 710);
-    ctx.lineTo(368, 505);
-    ctx.moveTo(590, 1050);
-    ctx.lineTo(648, 710);
-    ctx.lineTo(532, 505);
-    ctx.moveTo(310, 1050);
-    ctx.lineTo(590, 1050);
+    ctx.moveTo(300, 1015);
+    ctx.lineTo(225, 740);
+    ctx.lineTo(330, 610);
+    ctx.moveTo(600, 1015);
+    ctx.lineTo(675, 740);
+    ctx.lineTo(570, 610);
+    ctx.moveTo(300, 1015);
+    ctx.lineTo(600, 1015);
     ctx.stroke();
     ctx.fillStyle = "rgba(180, 230, 245, 0.18)";
     ctx.beginPath();
-    ctx.moveTo(315, 1040);
-    ctx.lineTo(270, 720);
-    ctx.lineTo(383, 535);
-    ctx.lineTo(517, 535);
-    ctx.lineTo(630, 720);
-    ctx.lineTo(585, 1040);
+    ctx.moveTo(305, 1005);
+    ctx.lineTo(245, 750);
+    ctx.lineTo(345, 635);
+    ctx.lineTo(555, 635);
+    ctx.lineTo(655, 750);
+    ctx.lineTo(595, 1005);
     ctx.closePath();
     ctx.fill();
   } else {
@@ -733,7 +1346,20 @@ function drawCat(cat) {
   const body = cat.body;
   let x = body.position.x;
   let y = body.position.y;
+  let angle = body.angle;
   let scale = 1;
+  if (
+    state.online.active &&
+    !isOnlineAuthority() &&
+    cat.renderFrom &&
+    cat.renderTo &&
+    !(cat === state.active && state.aiming && state.online.turnUid === state.online.uid)
+  ) {
+    const t = easeOutCubic(clamp((performance.now() - cat.renderSyncAt) / Math.max(70, ONLINE_SNAPSHOT_MS * 2.8), 0, 1));
+    x = cat.renderFrom.x + (cat.renderTo.x - cat.renderFrom.x) * t;
+    y = cat.renderFrom.y + (cat.renderTo.y - cat.renderFrom.y) * t;
+    angle = cat.renderFrom.angle + (cat.renderTo.angle - cat.renderFrom.angle) * t;
+  }
   if (cat === state.active && state.aiming && !cat.dropped) {
     const progress = clamp((performance.now() - cat.spawnedAt - SPAWN_ZOOM_HOLD_MS) / SPAWN_ZOOM_SHRINK_MS, 0, 1);
     const eased = easeOutCubic(progress);
@@ -745,7 +1371,7 @@ function drawCat(cat) {
   }
   ctx.save();
   ctx.translate(x, y);
-  ctx.rotate(body.angle);
+  ctx.rotate(angle);
   ctx.scale(scale, scale);
   ctx.shadowColor = "rgba(30, 55, 65, 0.22)";
   ctx.shadowBlur = 12;
@@ -877,6 +1503,50 @@ function drawAimGuide() {
   ctx.restore();
 }
 
+function drawTurnNotice() {
+  if (!state.online.active || state.screen !== "playing" || !state.online.turnNoticeText) return;
+  const elapsed = performance.now() - state.online.turnNoticeAt;
+  const duration = 1450;
+  if (elapsed > duration) return;
+  const progress = clamp(elapsed / duration, 0, 1);
+  const alpha = progress < 0.12 ? progress / 0.12 : 1 - easeOutCubic(clamp((progress - 0.68) / 0.32, 0, 1));
+  const scale = 0.92 + 0.08 * easeOutCubic(clamp(progress / 0.22, 0, 1));
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(W / 2, H * 0.34);
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  ctx.strokeStyle = "rgba(74, 146, 176, 0.78)";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.roundRect(-190, -48, 380, 96, 18);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#17313d";
+  ctx.font = "800 44px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(state.online.turnNoticeText, 0, 0);
+  ctx.restore();
+}
+
+function drawOnlineTimer() {
+  if (!state.online.active || state.online.finished || state.screen !== "playing" || state.gameOver) return;
+  const elapsed = Date.now() - timeValue(state.online.turnStartedAt);
+  const remaining = Math.max(0, Math.ceil((ONLINE_TURN_LIMIT_MS - elapsed) / 1000));
+  const urgency = clamp((5 - remaining) / 5, 0, 1);
+  ctx.save();
+  ctx.globalAlpha = 0.5 + urgency * 0.25;
+  ctx.fillStyle = "rgba(255, 132, 24, 0.72)";
+  ctx.font = "900 86px system-ui";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.shadowColor = "rgba(255, 115, 0, 0.18)";
+  ctx.shadowBlur = 18;
+  ctx.fillText(String(remaining), W / 2, 82);
+  ctx.restore();
+}
+
 function render() {
   ctx.clearRect(0, 0, W, H);
 
@@ -902,18 +1572,8 @@ function render() {
   drawStage();
   ctx.restore();
 
-  if (state.gameOver) {
-    ctx.save();
-    ctx.fillStyle = "rgba(255,255,255,0.86)";
-    ctx.fillRect(180, 450, 540, 170);
-    ctx.fillStyle = "#19252c";
-    ctx.font = "700 46px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillText("GAME OVER", W / 2, 525);
-    ctx.font = "24px system-ui";
-    ctx.fillText("Retryで再挑戦", W / 2, 570);
-    ctx.restore();
-  }
+  drawTurnNotice();
+  drawOnlineTimer();
 }
 
 let lastTime = performance.now();
@@ -1015,15 +1675,16 @@ holdButton(
     if (state.spinInput > 0) state.spinInput = 0;
   },
 );
-document.querySelector("#dropBtn").addEventListener("click", dropActive);
+document.querySelector("#dropBtn").addEventListener("click", () => dropActive());
 
 stageBowlBtn.addEventListener("click", () => reset("bowl"));
 stagePlatformBtn.addEventListener("click", () => reset("platform"));
 stageTowerBtn.addEventListener("click", () => reset("tower"));
 stageBottleBtn.addEventListener("click", () => reset("bottle"));
+onlineBattleBtn.addEventListener("click", startOnlineBattle);
 howToBtn.addEventListener("click", showHowTo);
 howToBackBtn.addEventListener("click", showTitleMenu);
-retryBtn.addEventListener("click", () => reset(state.stage));
+retryBtn.addEventListener("click", retryGame);
 toTitleBtn.addEventListener("click", showTitle);
 
 loadImages().then((images) => {
@@ -1037,6 +1698,7 @@ loadImages().then((images) => {
   populateTitleCats(images);
   reset("bowl");
   showTitle();
+  updateOnlineEntry();
   requestAnimationFrame(loop);
 });
 

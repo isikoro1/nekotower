@@ -1,0 +1,34 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": false,
+    "matchmaking": {
+      "queue": {
+        "$uid": {
+          ".write": "auth != null && ($uid === auth.uid || (data.child('status').val() === 'waiting' && newData.child('status').val() === 'matched' && newData.child('roomId').isString()))",
+          ".validate": "newData.hasChildren(['status', 'lastSeenAt']) && (newData.child('status').val() === 'waiting' || newData.child('status').val() === 'matched') && newData.child('lastSeenAt').isNumber() && (!newData.child('createdAt').exists() || newData.child('createdAt').isNumber()) && (!newData.child('matchedAt').exists() || newData.child('matchedAt').isNumber()) && (!newData.child('roomId').exists() || newData.child('roomId').isString())",
+          "$other": {
+            ".validate": "$other === 'status' || $other === 'createdAt' || $other === 'lastSeenAt' || $other === 'matchedAt' || $other === 'roomId'"
+          }
+        }
+      }
+    },
+    "rooms": {
+      "$roomId": {
+        ".write": "auth != null && ((!data.exists() && newData.child('players').child(auth.uid).exists()) || data.child('players').child(auth.uid).exists())",
+        ".validate": "newData.hasChildren(['status', 'createdAt', 'updatedAt', 'stage', 'hostUid', 'turnUid', 'turnNo', 'players']) && (newData.child('status').val() === 'matching' || newData.child('status').val() === 'playing' || newData.child('status').val() === 'finished' || newData.child('status').val() === 'abandoned') && newData.child('stage').isString() && newData.child('hostUid').isString() && newData.child('turnUid').isString() && newData.child('turnNo').isNumber()",
+        "players": {
+          "$uid": {
+            ".validate": "newData.hasChildren(['joinedAt', 'lastSeenAt', 'connected', 'displayName']) && newData.child('connected').isBoolean() && newData.child('displayName').isString()"
+          }
+        },
+        "input": {
+          "$uid": {
+            ".write": "auth != null && $uid === auth.uid && root.child('rooms').child($roomId).child('players').child(auth.uid).exists()",
+            ".validate": "newData.hasChildren(['updatedAt']) && (!newData.child('aimX').exists() || newData.child('aimX').isNumber()) && (!newData.child('angle').exists() || newData.child('angle').isNumber()) && (!newData.child('spinInput').exists() || newData.child('spinInput').isNumber()) && (!newData.child('spinVelocity').exists() || newData.child('spinVelocity').isNumber()) && (!newData.child('dropRequestedAt').exists() || newData.child('dropRequestedAt').isNumber()) && newData.child('updatedAt').isNumber()"
+          }
+        }
+      }
+    }
+  }
+}
