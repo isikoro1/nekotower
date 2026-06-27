@@ -10,6 +10,14 @@
 - Realtime Database
 - Anonymous Authentication
 
+## 安全の前提
+
+- 料金プランは Spark のままにする。
+- Blaze へアップグレードしない。
+- 自宅PCをサーバーとして公開しない。
+- Firebase config は秘密鍵ではないが、`src/online/firebase-config.js` はコミットしない。
+- Database Rules を未設定のまま公開しない。
+
 ## 取得する設定値
 
 `src/firebase-config.js` に入れる値:
@@ -31,26 +39,16 @@ window.NEKO_TOWER_FIREBASE_CONFIG = {
 雛形として `src/online/firebase-config.example.js` をコミットしています。
 `src/online/firebase-config.js` は `.gitignore` に入っているためコミットしません。
 
-## 初期ルール案
+## Database Rules
 
-実装時に調整する前提のたたき台です。
+Realtime Database の Rules には、リポジトリ直下の `firebase-database.rules.json` の内容を貼り付ける。
 
-```json
-{
-  "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
-  }
-}
-```
-
-これは開発初期用です。
-公開前には、待機列、ルーム、入力、プレイヤー単位で書き込み範囲を制限します。
+このルールは、匿名ログイン済みユーザーだけを許可し、待機列、ルーム、プレイヤー入力の形を最低限チェックする。
+オンライン対戦の同期を増やす場合は、このルールも一緒に更新する。
 
 ## 課金リスクを下げる設定
 
-- Blazeに上げない。まずSpark無料枠で試す。
-- 予算アラートを設定する。
+- Blazeに上げない。Spark無料枠で試す。
 - 公開初期は最大同時対戦数を低めにする。
 - ルーム寿命を短くする。
 - スナップショット送信頻度を上げすぎない。
@@ -70,14 +68,18 @@ window.NEKO_TOWER_FIREBASE_CONFIG = {
 
 ## 接続確認
 
-1. `src/online/firebase-config.example.js` を `src/online/firebase-config.js` にコピーする。
-2. Firebase ConsoleのWeb app設定値に置き換える。
-3. Realtime Databaseを作成する。
+1. Firebase Consoleでプロジェクトを作る。Google Analytics は不要。
+2. 料金プランが Spark であることを確認する。
+3. Web appを追加して、Firebase configを取得する。
 4. AuthenticationでAnonymous providerを有効化する。
-5. ローカル起動後、タイトルの「オンライン対戦」を押す。
-6. 1台目で「対戦相手を待っています...」が出ることを確認する。
-7. 2台目または別ブラウザで同じ操作をする。
-8. 「マッチしました。対戦同期は次に実装します」と出れば、Firebase初期化、匿名ログイン、待機キュー、ルーム作成は成功。
+5. Realtime Databaseを作成する。
+6. Realtime DatabaseのRulesに `firebase-database.rules.json` の内容を貼り付ける。
+7. `src/online/firebase-config.example.js` を `src/online/firebase-config.js` にコピーする。
+8. Firebase ConsoleのWeb app設定値に置き換える。
+9. ローカル起動後、タイトルの「オンライン対戦」を押す。
+10. 1台目で「対戦相手を待っています...」が出ることを確認する。
+11. 2台目または別ブラウザで同じ操作をする。
+12. 「マッチしました。対戦同期は次に実装します」と出れば、Firebase初期化、匿名ログイン、待機キュー、ルーム作成は成功。
 
 現在のSDK読み込みは、Firebase公式ドキュメントのブラウザモジュール形式に合わせて `https://www.gstatic.com/firebasejs/12.15.0/` を使う。
 
