@@ -25,7 +25,7 @@
         "input": {
           "$uid": {
             ".write": "auth != null && $uid === auth.uid && root.child('rooms').child($roomId).child('players').child(auth.uid).exists()",
-            ".validate": "newData.hasChildren(['updatedAt']) && (!newData.child('aimX').exists() || newData.child('aimX').isNumber()) && (!newData.child('spinInput').exists() || newData.child('spinInput').isNumber()) && (!newData.child('dropRequestedAt').exists() || newData.child('dropRequestedAt').isNumber()) && newData.child('updatedAt').isNumber()"
+            ".validate": "newData.hasChildren(['updatedAt']) && (!newData.child('aimX').exists() || newData.child('aimX').isNumber()) && (!newData.child('angle').exists() || newData.child('angle').isNumber()) && (!newData.child('spinInput').exists() || newData.child('spinInput').isNumber()) && (!newData.child('spinVelocity').exists() || newData.child('spinVelocity').isNumber()) && (!newData.child('dropRequestedAt').exists() || newData.child('dropRequestedAt').isNumber()) && newData.child('updatedAt').isNumber()"
           }
         }
       }

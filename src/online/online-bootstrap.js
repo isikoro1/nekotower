@@ -15,6 +15,8 @@
     ERROR: "error",
   };
 
+  const ONLINE_STAGES = ["bowl", "platform", "tower", "bottle"];
+
   function hasFirebaseConfig() {
     const config = window.NEKO_TOWER_FIREBASE_CONFIG;
     return Boolean(
@@ -72,6 +74,30 @@
         return Promise.reject(new Error(this.reason || "Online battle is disabled."));
       }
       return this.initialize().then((client) => startMatchmaking(client, this));
+    },
+    watchRoom(roomId, onChange) {
+      return this.initialize().then((client) => {
+        const { onValue, ref } = client.databaseModule;
+        return onValue(ref(client.database, `rooms/${roomId}`), (snapshot) => onChange(snapshot.val()));
+      });
+    },
+    watchInputs(roomId, onChange) {
+      return this.initialize().then((client) => {
+        const { onValue, ref } = client.databaseModule;
+        return onValue(ref(client.database, `rooms/${roomId}/input`), (snapshot) => onChange(snapshot.val() || {}));
+      });
+    },
+    updateRoom(roomId, values) {
+      return this.initialize().then((client) => {
+        const { ref, update } = client.databaseModule;
+        return update(ref(client.database, `rooms/${roomId}`), values);
+      });
+    },
+    updateInput(roomId, uid, values) {
+      return this.initialize().then((client) => {
+        const { ref, set } = client.databaseModule;
+        return set(ref(client.database, `rooms/${roomId}/input/${uid}`), values);
+      });
     },
   };
 
@@ -147,10 +173,11 @@
         status: "matching",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-        stage: "bowl",
+        stage: ONLINE_STAGES[Math.floor(Math.random() * ONLINE_STAGES.length)],
         hostUid: opponentUid,
         turnUid: opponentUid,
         turnNo: 1,
+        turnStartedAt: serverTimestamp(),
         players: {
           [opponentUid]: {
             joinedAt: serverTimestamp(),

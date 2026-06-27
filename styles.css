@@ -137,6 +137,28 @@ canvas {
   margin: 0;
 }
 
+.game-over-screen.win h2 {
+  color: #ef3b2d;
+  text-shadow:
+    0 3px 0 rgba(255, 196, 75, 0.72),
+    0 0 22px rgba(255, 102, 42, 0.34);
+}
+
+.game-over-screen.win {
+  background: rgba(255, 248, 232, 0.9);
+  border-color: rgba(239, 93, 43, 0.42);
+}
+
+.game-over-screen.lose h2 {
+  color: #286fb7;
+  text-shadow: 0 8px 18px rgba(42, 91, 145, 0.18);
+}
+
+.game-over-screen.lose {
+  background: rgba(236, 246, 255, 0.9);
+  border-color: rgba(66, 124, 184, 0.38);
+}
+
 .overlay p {
   color: #52646b;
   margin: 0;
