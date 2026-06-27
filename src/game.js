@@ -603,11 +603,17 @@ function reset(stage = state.stage, options = {}) {
 }
 
 function spawn(assetName = "") {
+  resetAimSpin();
   state.active = makeCat(assetName);
   rememberCatName(state.active.name);
   state.cats.push(state.active);
   state.aiming = true;
   playMeow();
+}
+
+function resetAimSpin() {
+  state.spinInput = 0;
+  state.spinVelocity = 0;
 }
 
 function updateHud() {
@@ -764,6 +770,8 @@ function handleOnlineInputs(inputs) {
   if (!state.online.active || state.gameOver) return;
   for (const [uid, input] of Object.entries(inputs || {})) {
     if (uid === state.online.uid) continue;
+    const inputTurnNo = Number(input?.turnNo || 0);
+    if (inputTurnNo !== state.online.turnNo) continue;
     if (state.aiming && state.online.turnUid === uid && state.active && !state.active.dropped) {
       applyRemoteAim(input);
     }
@@ -799,6 +807,7 @@ function syncOnlineTurnSetup(room) {
 
 function replaceActiveCat(catName, turnNo) {
   if (!state.active || state.active.dropped) return;
+  resetAimSpin();
   Composite.remove(physics.engine.world, state.active.body);
   const index = state.cats.indexOf(state.active);
   if (index >= 0) state.cats.splice(index, 1);
@@ -926,6 +935,7 @@ function syncOnlineAim(force = false) {
   if (!force && now - state.online.lastAimSyncAt < ONLINE_AIM_SYNC_MS) return;
   state.online.lastAimSyncAt = now;
   window.NekoTowerOnline?.updateInput?.(state.online.roomId, state.online.uid, {
+    turnNo: state.online.turnNo,
     aimX: state.active.body.position.x,
     angle: state.active.body.angle,
     spinVelocity: state.spinVelocity,
@@ -1026,6 +1036,7 @@ function dropActive(source = "local") {
   }
   if (source === "local" && state.online.active) {
     window.NekoTowerOnline?.updateInput?.(state.online.roomId, state.online.uid, {
+      turnNo: state.online.turnNo,
       aimX: body.position.x,
       angle: body.angle,
       spinVelocity: spin,
