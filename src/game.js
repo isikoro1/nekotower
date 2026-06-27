@@ -1558,23 +1558,6 @@ function render() {
   drawStage();
   ctx.restore();
 
-  if (state.gameOver) {
-    ctx.save();
-    ctx.fillStyle = "rgba(255,255,255,0.86)";
-    ctx.fillRect(180, 450, 540, 170);
-    ctx.fillStyle = hasResultTone("win")
-      ? "#ef3b2d"
-      : hasResultTone("lose")
-        ? "#286fb7"
-        : "#19252c";
-    ctx.font = "700 46px system-ui";
-    ctx.textAlign = "center";
-    ctx.fillText(gameOverTitleEl.textContent || "GAME OVER", W / 2, 525);
-    ctx.font = "24px system-ui";
-    ctx.fillText("Retryで再挑戦", W / 2, 570);
-    ctx.restore();
-  }
-
   drawTurnNotice();
   drawOnlineTimer();
 }
