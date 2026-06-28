@@ -1228,6 +1228,13 @@ function nextTurn() {
 }
 
 function lose(cat) {
+  if (state.matchmakingActive && !state.online.active) {
+    reset(state.stage);
+    state.matchmakingActive = true;
+    onlineStatusEl.textContent = "対戦相手を待っています";
+    updateHud();
+    return;
+  }
   if (state.online.active) finishOnlineLoss(state.online.turnUid || state.online.uid);
   state.gameOver = true;
   state.aiming = false;
