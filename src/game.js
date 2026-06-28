@@ -519,9 +519,9 @@ function stageBodies(stage) {
   }
 
   return [
-    wallFromSegment({ x: 185, y: 850 }, { x: 275, y: 1065 }, 34),
+    wallFromSegment({ x: 185, y: 930 }, { x: 275, y: 1065 }, 34),
     wallFromSegment({ x: 275, y: 1065 }, { x: 625, y: 1065 }, 38),
-    wallFromSegment({ x: 625, y: 1065 }, { x: 715, y: 850 }, 34),
+    wallFromSegment({ x: 625, y: 1065 }, { x: 715, y: 930 }, 34),
   ];
 }
 
@@ -1340,19 +1340,19 @@ function drawStage() {
     ctx.fill();
   } else {
     ctx.beginPath();
-    ctx.moveTo(185, 850);
+    ctx.moveTo(185, 930);
     ctx.lineTo(275, 1065);
     ctx.lineTo(625, 1065);
-    ctx.lineTo(715, 850);
+    ctx.lineTo(715, 930);
     ctx.stroke();
 
     ctx.strokeStyle = "rgba(255,255,255,0.72)";
     ctx.lineWidth = 10;
     ctx.beginPath();
-    ctx.moveTo(203, 872);
+    ctx.moveTo(203, 948);
     ctx.lineTo(289, 1043);
     ctx.lineTo(611, 1043);
-    ctx.lineTo(697, 872);
+    ctx.lineTo(697, 948);
     ctx.stroke();
   }
   ctx.restore();
