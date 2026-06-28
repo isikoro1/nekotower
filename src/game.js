@@ -12,6 +12,7 @@ const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
 const gameOverTitleEl = document.querySelector("#gameOverTitle");
 const gameOverMessageEl = document.querySelector("#gameOverMessage");
+const shareBestStreakBtn = document.createElement("button");
 const stageBowlBtn = document.querySelector("#stageBowlBtn");
 const stagePlatformBtn = document.querySelector("#stagePlatformBtn");
 const stageTowerBtn = document.querySelector("#stageTowerBtn");
@@ -29,6 +30,11 @@ if (typeof gameHudEl?.insertBefore === "function") {
 } else {
   gameHudEl?.appendChild?.(hudStreakEl);
 }
+shareBestStreakBtn.id = "shareBestStreakBtn";
+shareBestStreakBtn.type = "button";
+shareBestStreakBtn.textContent = "最高連勝をXで共有";
+shareBestStreakBtn.hidden = true;
+gameOverScreen?.appendChild?.(shareBestStreakBtn);
 
 const { Bodies, Body, Common, Composite, Engine, Events, Sleeping, Vertices, Vector } = window.Matter;
 
@@ -630,6 +636,7 @@ function reset(stage = state.stage, options = {}) {
   state.catBag = [];
   titleScreen.hidden = true;
   gameOverScreen.hidden = true;
+  updateShareBestStreakButton(false);
   spawn();
   updateHud();
 }
@@ -676,6 +683,17 @@ function recordOnlineResult(didLose) {
 
 function streakMessage() {
   return `連勝 ${state.onlineWinStreak} / 最高 ${state.onlineBestWinStreak}`;
+}
+
+function shareBestStreakUrl() {
+  const best = state.onlineBestWinStreak;
+  const text = `ねこタワーのオンライン対戦で最高${best}連勝しました！`;
+  const url = window.location?.origin && window.location.origin !== "null" ? window.location.origin : "https://nekotower.isikoro.dev/";
+  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+}
+
+function updateShareBestStreakButton(visible = false) {
+  shareBestStreakBtn.hidden = !visible || state.onlineBestWinStreak <= 0;
 }
 
 function updateOnlineEntry() {
@@ -1097,6 +1115,7 @@ function showOnlineResult(room) {
   setResultTone(didLose ? "lose" : "win");
   gameOverTitleEl.textContent = title;
   gameOverMessageEl.textContent = message;
+  updateShareBestStreakButton(true);
   gameOverScreen.hidden = false;
   updateHud();
 }
@@ -1202,6 +1221,7 @@ function lose(cat) {
         : `相手が${currentCatNumber()}匹目で落としました。${streakMessage()}`)
     : `終了。${state.score}匹入りました。Retryでもう一回。`;
   gameOverMessageEl.textContent = message;
+  updateShareBestStreakButton(state.online.active);
   gameOverScreen.hidden = false;
   updateHud();
 }
@@ -1226,6 +1246,7 @@ function showTitle() {
   state.aiming = false;
   titleScreen.hidden = false;
   gameOverScreen.hidden = true;
+  updateShareBestStreakButton(false);
   showTitleMenu();
   updateHud();
 }
@@ -1244,6 +1265,7 @@ function retryGame() {
   gameOverTitleEl.textContent = "GAME OVER";
   clearResultTone();
   gameOverScreen.hidden = true;
+  updateShareBestStreakButton(false);
   titleScreen.hidden = false;
   showTitleMenu();
   updateOnlineEntry();
@@ -1809,6 +1831,11 @@ howToBtn.addEventListener("click", showHowTo);
 howToBackBtn.addEventListener("click", showTitleMenu);
 retryBtn.addEventListener("click", retryGame);
 toTitleBtn.addEventListener("click", showTitle);
+shareBestStreakBtn.addEventListener?.("click", () => {
+  const shareUrl = shareBestStreakUrl();
+  const opened = window.open?.(shareUrl, "_blank", "noopener,noreferrer");
+  if (!opened) window.location.href = shareUrl;
+});
 
 loadImages().then((images) => {
   state.loadedCats = images;

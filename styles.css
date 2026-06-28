@@ -173,6 +173,16 @@ canvas {
   min-width: 180px;
 }
 
+#shareBestStreakBtn {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+}
+
+#shareBestStreakBtn[hidden] {
+  display: none;
+}
+
 .title-menu,
 .howto-panel {
   display: grid;
