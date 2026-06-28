@@ -146,6 +146,7 @@ const meowPlayers = MEOW_SOUNDS.map((src) => {
   return player;
 });
 let lastMeowIndex = -1;
+let audioUnlocked = false;
 
 function bestKey(stage) {
   return `cat-bowl-best:${stage}`;
@@ -192,6 +193,7 @@ function currentCatNumber() {
 }
 
 function playMeow() {
+  if (!audioUnlocked) return;
   let index = Math.floor(Math.random() * meowPlayers.length);
   if (meowPlayers.length > 1 && index === lastMeowIndex) {
     index = (index + 1 + Math.floor(Math.random() * (meowPlayers.length - 1))) % meowPlayers.length;
@@ -201,7 +203,29 @@ function playMeow() {
   if (!basePlayer) return;
   const player = basePlayer.cloneNode();
   player.volume = basePlayer.volume;
-  player.play().catch(() => {});
+  player.play().catch(() => {
+    audioUnlocked = false;
+  });
+}
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  for (const player of meowPlayers) {
+    player.currentTime = 0;
+    const previousVolume = player.volume;
+    player.volume = 0;
+    player.play()
+      .then(() => {
+        player.pause?.();
+        player.currentTime = 0;
+        player.volume = previousVolume;
+      })
+      .catch(() => {
+        player.volume = previousVolume;
+        audioUnlocked = false;
+      });
+  }
 }
 
 function loadImages() {
@@ -1714,6 +1738,7 @@ function loop(now) {
 }
 
 window.addEventListener("keydown", (event) => {
+  unlockAudio();
   state.keys.add(event.key);
   if (event.code === "Space") {
     event.preventDefault();
@@ -1740,6 +1765,7 @@ canvas.addEventListener("pointermove", (event) => {
 });
 
 canvas.addEventListener("pointerdown", (event) => {
+  unlockAudio();
   lastPointerType = event.pointerType || "mouse";
   const rect = canvas.getBoundingClientRect();
   state.pointerX = ((event.clientX - rect.left) / rect.width) * W;
@@ -1769,6 +1795,7 @@ canvas.addEventListener("pointerleave", () => {
 function holdButton(button, onStart, onStop) {
   const start = (event) => {
     event.preventDefault();
+    unlockAudio();
     button.setPointerCapture?.(event.pointerId);
     onStart();
   };
@@ -1803,13 +1830,31 @@ holdButton(
     if (state.spinInput > 0) state.spinInput = 0;
   },
 );
-document.querySelector("#dropBtn").addEventListener("click", () => dropActive());
+document.querySelector("#dropBtn").addEventListener("click", () => {
+  unlockAudio();
+  dropActive();
+});
 
-stageBowlBtn.addEventListener("click", () => reset("bowl"));
-stagePlatformBtn.addEventListener("click", () => reset("platform"));
-stageTowerBtn.addEventListener("click", () => reset("tower"));
-stageBottleBtn.addEventListener("click", () => reset("bottle"));
-onlineBattleBtn.addEventListener("click", startOnlineBattle);
+stageBowlBtn.addEventListener("click", () => {
+  unlockAudio();
+  reset("bowl");
+});
+stagePlatformBtn.addEventListener("click", () => {
+  unlockAudio();
+  reset("platform");
+});
+stageTowerBtn.addEventListener("click", () => {
+  unlockAudio();
+  reset("tower");
+});
+stageBottleBtn.addEventListener("click", () => {
+  unlockAudio();
+  reset("bottle");
+});
+onlineBattleBtn.addEventListener("click", () => {
+  unlockAudio();
+  startOnlineBattle();
+});
 howToBtn.addEventListener("click", showHowTo);
 howToBackBtn.addEventListener("click", showTitleMenu);
 retryBtn.addEventListener("click", retryGame);
