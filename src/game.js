@@ -5,6 +5,7 @@ const gameHudEl = document.querySelector(".game-hud");
 const hudScoreEl = document.querySelector("#hudScore");
 const hudTurnEl = document.querySelector("#hudTurn");
 const hudStreakEl = document.createElement("span");
+const hudOpponentEl = document.createElement("span");
 const titleCatsEl = document.querySelector("#titleCats");
 const titleMenuEl = document.querySelector("#titleMenu");
 const playerNameRowEl = document.createElement("label");
@@ -32,6 +33,9 @@ if (typeof gameHudEl?.insertBefore === "function") {
 } else {
   gameHudEl?.appendChild?.(hudStreakEl);
 }
+hudOpponentEl.id = "hudOpponent";
+hudOpponentEl.hidden = true;
+gameHudEl?.appendChild?.(hudOpponentEl);
 shareBestStreakBtn.id = "shareBestStreakBtn";
 shareBestStreakBtn.type = "button";
 shareBestStreakBtn.textContent = "Xで共有";
@@ -674,11 +678,14 @@ function resetAimSpin() {
 function updateHud() {
   hudScoreEl.textContent = currentCatNumber();
   hudStreakEl.textContent = state.onlineWinStreak > 0 ? `${state.onlineWinStreak}連勝中` : "連勝 0";
+  const showOpponent = state.online.active && !state.online.finished && opponentUid();
+  hudOpponentEl.hidden = !showOpponent;
+  if (showOpponent) hudOpponentEl.textContent = `対戦相手: ${opponentName()}`;
   if (state.online.active) {
     if (state.online.finished) {
       hudTurnEl.textContent = "Online";
     } else {
-      hudTurnEl.textContent = state.online.turnUid === state.online.uid ? "あなたの番" : `${opponentName()}の番`;
+      hudTurnEl.textContent = state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番";
     }
   } else if (state.matchmakingActive) {
     hudTurnEl.textContent = "マッチ待ち";
@@ -795,7 +802,7 @@ async function startOnlineSession(match) {
     if (state.online.turnUid && state.online.turnUid !== previousTurnUid) {
       state.online.pendingDropTurnNo = 0;
       resetComAi();
-      showTurnNotice(state.online.turnUid === state.online.uid ? "あなたの番" : `${opponentName()}の番`);
+      showTurnNotice(state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番");
     }
     syncOnlineTurnSetup(room);
     if (room.status === "finished") {
