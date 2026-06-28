@@ -69,11 +69,11 @@
         });
       return this.initPromise;
     },
-    startMatchmaking() {
+    startMatchmaking(options = {}) {
       if (!this.isEnabled()) {
         return Promise.reject(new Error(this.reason || "Online battle is disabled."));
       }
-      return this.initialize().then((client) => startMatchmaking(client, this));
+      return this.initialize().then((client) => startMatchmaking(client, this, options));
     },
     watchRoom(roomId, onChange) {
       return this.initialize().then((client) => {
@@ -124,9 +124,14 @@
     };
   }
 
-  async function startMatchmaking(client, online) {
+  function sanitizeDisplayName(name = "") {
+    return String(name).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "Player";
+  }
+
+  async function startMatchmaking(client, online, options = {}) {
     const db = client.database;
     const uid = client.user.uid;
+    const displayName = sanitizeDisplayName(options.displayName);
     const {
       child,
       get,
@@ -165,7 +170,8 @@
 
     const opponent = waitingPlayers.find(([waitingUid]) => waitingUid !== uid);
     if (opponent) {
-      const [opponentUid] = opponent;
+      const [opponentUid, opponentEntry] = opponent;
+      const opponentName = sanitizeDisplayName(opponentEntry?.displayName);
       const roomRef = push(roomsRef);
       const roomId = roomRef.key;
       const updates = {};
@@ -183,13 +189,13 @@
             joinedAt: serverTimestamp(),
             lastSeenAt: serverTimestamp(),
             connected: true,
-            displayName: "Player 1",
+            displayName: opponentName,
           },
           [uid]: {
             joinedAt: serverTimestamp(),
             lastSeenAt: serverTimestamp(),
             connected: true,
-            displayName: "Player 2",
+            displayName,
           },
         },
       };
@@ -215,6 +221,7 @@
       status: "waiting",
       createdAt: now,
       lastSeenAt: now,
+      displayName,
     });
     onDisconnect(ownQueueRef).remove();
 
