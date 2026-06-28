@@ -111,6 +111,7 @@ const state = {
     lastSnapshotKey: "",
     pendingDropTurnNo: 0,
     lastHeartbeatAt: 0,
+    comAi: null,
   },
 };
 
@@ -573,6 +574,7 @@ function clearOnlineSession(resetStatus = true) {
     lastSnapshotKey: "",
     pendingDropTurnNo: 0,
     lastHeartbeatAt: 0,
+    comAi: null,
   };
   if (resetStatus) updateOnlineEntry();
 }
@@ -703,6 +705,7 @@ async function startOnlineSession(match) {
     }
     if (state.online.turnUid && state.online.turnUid !== previousTurnUid) {
       state.online.pendingDropTurnNo = 0;
+      resetComAi();
       showTurnNotice(state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番");
     }
     syncOnlineTurnSetup(room);
@@ -968,10 +971,62 @@ function autoAimForTurn() {
   state.active.aimSpinVelocity = spin;
 }
 
-function updateOnlineTurnTimer() {
+function resetComAi() {
+  state.online.comAi = null;
+}
+
+function ensureComAi(now) {
+  if (state.online.comAi?.turnNo === state.online.turnNo) return state.online.comAi;
+  state.online.comAi = {
+    turnNo: state.online.turnNo,
+    startedAt: now,
+    dropAt: now + rand(1000, 4000),
+    nextActionAt: now,
+    move: 0,
+    spin: 0,
+  };
+  return state.online.comAi;
+}
+
+function chooseComAction(ai, now) {
+  if (now < ai.nextActionAt) return;
+  ai.nextActionAt = now + rand(220, 780);
+  ai.move = Math.random() < 0.38 ? 0 : Math.random() < 0.5 ? -1 : 1;
+  ai.spin = Math.random() < 0.36 ? 0 : Math.random() < 0.5 ? -1 : 1;
+}
+
+function updateComAiForTurn(dt) {
+  if (!state.active || !state.aiming) return false;
+  const now = Date.now();
+  const ai = ensureComAi(now);
+  chooseComAction(ai, now);
+
+  const body = state.active.body;
+  const x = clamp(body.position.x + ai.move * 270 * dt, AIM_MIN_X, AIM_MAX_X);
+  const currentSpin = Number(state.active.aimSpinVelocity || 0);
+  const spinVelocity = ai.spin
+    ? clamp(currentSpin + ai.spin * ROT_ACCEL * 60 * dt, -ROT_MAX, ROT_MAX)
+    : currentSpin * 0.985;
+
+  Body.setPosition(body, { x, y: state.targetCameraY + 150 });
+  Body.setAngle(body, body.angle + spinVelocity);
+  state.active.aimSpinVelocity = Math.abs(spinVelocity) < 0.0007 ? 0 : spinVelocity;
+
+  return now >= ai.dropAt;
+}
+
+function updateOnlineTurnTimer(dt) {
   if (!state.online.active || state.online.finished || !isOnlineAuthority() || !state.aiming || !state.active) return;
   const elapsed = Date.now() - state.online.turnStartedAt;
   const disconnected = isPlayerDisconnected(state.online.turnUid);
+  if (state.online.turnUid === state.online.uid || !disconnected) resetComAi();
+  if (state.online.turnUid !== state.online.uid && disconnected) {
+    if (!updateComAiForTurn(dt)) return;
+    state.online.remoteDropActive = true;
+    dropActive("remote");
+    resetComAi();
+    return;
+  }
   if (elapsed < ONLINE_TURN_LIMIT_MS && !disconnected) return;
   if (state.online.turnUid !== state.online.uid) {
     autoAimForTurn();
@@ -1229,7 +1284,7 @@ function step(dt) {
   if (state.screen !== "playing" || state.gameOver) return;
 
   syncOnlineHeartbeat();
-  updateOnlineTurnTimer();
+  updateOnlineTurnTimer(dt);
   if (state.online.active) updateHud();
 
   aimActive(dt);
