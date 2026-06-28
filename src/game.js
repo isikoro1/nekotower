@@ -147,6 +147,8 @@ const meowPlayers = MEOW_SOUNDS.map((src) => {
 });
 let lastMeowIndex = -1;
 let audioUnlocked = false;
+let audioUnlocking = false;
+let pendingMeow = false;
 
 function bestKey(stage) {
   return `cat-bowl-best:${stage}`;
@@ -193,39 +195,51 @@ function currentCatNumber() {
 }
 
 function playMeow() {
-  if (!audioUnlocked) return;
+  if (!audioUnlocked) {
+    pendingMeow = true;
+    return;
+  }
   let index = Math.floor(Math.random() * meowPlayers.length);
   if (meowPlayers.length > 1 && index === lastMeowIndex) {
     index = (index + 1 + Math.floor(Math.random() * (meowPlayers.length - 1))) % meowPlayers.length;
   }
   lastMeowIndex = index;
-  const basePlayer = meowPlayers[index];
-  if (!basePlayer) return;
-  const player = basePlayer.cloneNode();
-  player.volume = basePlayer.volume;
+  const player = meowPlayers[index];
+  if (!player) return;
+  player.pause?.();
+  player.currentTime = 0;
+  player.volume = 0.72;
   player.play().catch(() => {
     audioUnlocked = false;
+    pendingMeow = true;
   });
 }
 
 function unlockAudio() {
-  if (audioUnlocked) return;
-  audioUnlocked = true;
-  for (const player of meowPlayers) {
-    player.currentTime = 0;
-    const previousVolume = player.volume;
-    player.volume = 0;
-    player.play()
-      .then(() => {
+  if (audioUnlocked || audioUnlocking) return;
+  audioUnlocking = true;
+  Promise.allSettled(
+    meowPlayers.map((player) => {
+      player.currentTime = 0;
+      const previousVolume = player.volume;
+      player.volume = 0;
+      return player.play().then(() => {
         player.pause?.();
         player.currentTime = 0;
         player.volume = previousVolume;
-      })
-      .catch(() => {
+      }).catch((error) => {
         player.volume = previousVolume;
-        audioUnlocked = false;
+        throw error;
       });
-  }
+    }),
+  ).then((results) => {
+    audioUnlocking = false;
+    audioUnlocked = results.some((result) => result.status === "fulfilled");
+    if (audioUnlocked && pendingMeow) {
+      pendingMeow = false;
+      playMeow();
+    }
+  });
 }
 
 function loadImages() {
