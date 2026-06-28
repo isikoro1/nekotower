@@ -104,6 +104,11 @@ canvas {
   z-index: 2;
 }
 
+#hudStreak {
+  font-size: 0.92rem;
+  opacity: 0.82;
+}
+
 .overlay {
   align-content: center;
   background: rgba(244, 250, 252, 0.88);

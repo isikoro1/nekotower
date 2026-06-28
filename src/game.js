@@ -1,8 +1,10 @@
 ﻿const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
 
+const gameHudEl = document.querySelector(".game-hud");
 const hudScoreEl = document.querySelector("#hudScore");
 const hudTurnEl = document.querySelector("#hudTurn");
+const hudStreakEl = document.createElement("span");
 const titleCatsEl = document.querySelector("#titleCats");
 const titleMenuEl = document.querySelector("#titleMenu");
 const howToPanelEl = document.querySelector("#howToPanel");
@@ -20,6 +22,13 @@ const howToBtn = document.querySelector("#howToBtn");
 const howToBackBtn = document.querySelector("#howToBackBtn");
 const retryBtn = document.querySelector("#retryBtn");
 const toTitleBtn = document.querySelector("#toTitleBtn");
+
+hudStreakEl.id = "hudStreak";
+if (typeof gameHudEl?.insertBefore === "function") {
+  gameHudEl.insertBefore(hudStreakEl, hudTurnEl);
+} else {
+  gameHudEl?.appendChild?.(hudStreakEl);
+}
 
 const { Bodies, Body, Common, Composite, Engine, Events, Sleeping, Vertices, Vector } = window.Matter;
 
@@ -88,6 +97,8 @@ const state = {
   lastCatName: "",
   recentCatNames: [],
   catBag: [],
+  onlineWinStreak: getOnlineWinStreak(),
+  onlineBestWinStreak: getOnlineBestWinStreak(),
   keys: new Set(),
   online: {
     active: false,
@@ -103,6 +114,7 @@ const state = {
     inputUnsubscribe: null,
     remoteDropActive: false,
     finished: false,
+    resultRecorded: false,
     turnNoticeText: "",
     turnNoticeAt: 0,
     lastAimSyncAt: 0,
@@ -135,6 +147,22 @@ function bestKey(stage) {
 
 function getBest(stage) {
   return Number(localStorage.getItem(bestKey(stage)) || 0);
+}
+
+function onlineWinStreakKey() {
+  return "cat-bowl-online-win-streak";
+}
+
+function onlineBestWinStreakKey() {
+  return "cat-bowl-online-best-win-streak";
+}
+
+function getOnlineWinStreak() {
+  return Number(localStorage.getItem(onlineWinStreakKey()) || 0);
+}
+
+function getOnlineBestWinStreak() {
+  return Number(localStorage.getItem(onlineBestWinStreakKey()) || 0);
 }
 
 state.best = getBest(state.stage);
@@ -566,6 +594,7 @@ function clearOnlineSession(resetStatus = true) {
     inputUnsubscribe: null,
     remoteDropActive: false,
     finished: false,
+    resultRecorded: false,
     turnNoticeText: "",
     turnNoticeAt: 0,
     lastAimSyncAt: 0,
@@ -622,6 +651,7 @@ function resetAimSpin() {
 
 function updateHud() {
   hudScoreEl.textContent = currentCatNumber();
+  hudStreakEl.textContent = `連勝 ${state.onlineWinStreak} / 最高 ${state.onlineBestWinStreak}`;
   if (state.online.active) {
     if (state.online.finished) {
       hudTurnEl.textContent = "Online";
@@ -633,6 +663,19 @@ function updateHud() {
   } else {
     hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
   }
+}
+
+function recordOnlineResult(didLose) {
+  if (!state.online.active || state.online.resultRecorded) return;
+  state.online.resultRecorded = true;
+  state.onlineWinStreak = didLose ? 0 : state.onlineWinStreak + 1;
+  state.onlineBestWinStreak = Math.max(state.onlineBestWinStreak, state.onlineWinStreak);
+  localStorage.setItem(onlineWinStreakKey(), String(state.onlineWinStreak));
+  localStorage.setItem(onlineBestWinStreakKey(), String(state.onlineBestWinStreak));
+}
+
+function streakMessage() {
+  return `連勝 ${state.onlineWinStreak} / 最高 ${state.onlineBestWinStreak}`;
 }
 
 function updateOnlineEntry() {
@@ -689,6 +732,8 @@ async function startOnlineSession(match) {
   state.online.roomId = match.roomId;
   state.online.uid = client.user.uid;
   state.online.lastInputs = {};
+  state.online.finished = false;
+  state.online.resultRecorded = false;
   onlineStatusEl.textContent = "マッチしました。対戦開始";
   reset("bowl", { keepOnline: true });
 
@@ -1043,9 +1088,12 @@ function showOnlineResult(room) {
   state.aiming = false;
   state.screen = "gameover";
   const didLose = room.loserUid === state.online.uid;
+  recordOnlineResult(didLose);
   const title = didLose ? "YOU LOSE" : "YOU WIN!!";
   const finalScore = Number(room.finalScore || room.snapshot?.score + 1 || currentCatNumber());
-  const message = didLose ? `${finalScore}匹目で負け。` : `相手が${finalScore}匹目で落としました。`;
+  const message = didLose
+    ? `${finalScore}匹目で負け。${streakMessage()}`
+    : `相手が${finalScore}匹目で落としました。${streakMessage()}`;
   setResultTone(didLose ? "lose" : "win");
   gameOverTitleEl.textContent = title;
   gameOverMessageEl.textContent = message;
@@ -1145,10 +1193,13 @@ function lose(cat) {
   state.aiming = false;
   state.screen = "gameover";
   const didLose = !state.online.active || state.online.turnUid === state.online.uid;
+  if (state.online.active) recordOnlineResult(didLose);
   setResultTone(state.online.active ? (didLose ? "lose" : "win") : "");
   gameOverTitleEl.textContent = state.online.active ? (didLose ? "YOU LOSE" : "YOU WIN!!") : "GAME OVER";
   const message = state.online.active
-    ? (didLose ? `${currentCatNumber()}匹目で負け。` : `相手が${currentCatNumber()}匹目で落としました。`)
+    ? (didLose
+        ? `${currentCatNumber()}匹目で負け。${streakMessage()}`
+        : `相手が${currentCatNumber()}匹目で落としました。${streakMessage()}`)
     : `終了。${state.score}匹入りました。Retryでもう一回。`;
   gameOverMessageEl.textContent = message;
   gameOverScreen.hidden = false;
