@@ -448,6 +448,7 @@ function makeCat(assetName = "") {
     dropped: false,
     counted: false,
     stableFrames: 0,
+    aimSpinVelocity: 0,
     curveSpin: 0,
     droppedAt: 0,
     spawnedAt: performance.now(),
@@ -614,6 +615,7 @@ function spawn(assetName = "") {
 function resetAimSpin() {
   state.spinInput = 0;
   state.spinVelocity = 0;
+  if (state.active) state.active.aimSpinVelocity = 0;
 }
 
 function updateHud() {
@@ -833,7 +835,7 @@ function applyRemoteAim(input = {}) {
   const angle = Number.isFinite(Number(input.angle)) ? Number(input.angle) : state.active.body.angle;
   Body.setPosition(state.active.body, { x, y: state.targetCameraY + 150 });
   Body.setAngle(state.active.body, angle);
-  state.spinVelocity = clamp(Number(input.spinVelocity || 0), -ROT_MAX, ROT_MAX);
+  state.active.aimSpinVelocity = clamp(Number(input.spinVelocity || 0), -ROT_MAX, ROT_MAX);
 }
 
 function catSnapshot(cat) {
@@ -963,6 +965,7 @@ function autoAimForTurn() {
   Body.setPosition(state.active.body, { x, y: state.targetCameraY + 150 });
   Body.setAngle(state.active.body, state.active.body.angle + spin);
   state.spinVelocity = spin;
+  state.active.aimSpinVelocity = spin;
 }
 
 function updateOnlineTurnTimer() {
@@ -1017,8 +1020,9 @@ function dropActive(source = "local") {
   Body.setStatic(body, false);
   Sleeping.set(body, false);
   Body.setVelocity(body, { x: 0, y: 1.8 });
-  const hasCurveSpin = Math.abs(state.spinVelocity) > 0.004;
-  const spin = hasCurveSpin ? state.spinVelocity * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
+  const aimSpin = source === "local" ? state.spinVelocity : Number(state.active.aimSpinVelocity || 0);
+  const hasCurveSpin = Math.abs(aimSpin) > 0.004;
+  const spin = hasCurveSpin ? aimSpin * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
   Body.setAngularVelocity(body, spin);
   state.active.curveSpin = hasCurveSpin ? spin : 0;
   Body.setPosition(body, { x: body.position.x, y: body.position.y + 3 });
@@ -1161,6 +1165,7 @@ function aimActive(dt) {
   }
   Body.setPosition(body, { x: targetX, y: state.targetCameraY + 150 });
   Body.setAngle(body, body.angle + state.spinVelocity);
+  state.active.aimSpinVelocity = state.spinVelocity;
   syncOnlineAim();
 }
 
@@ -1399,12 +1404,13 @@ function drawCat(cat) {
 
 function drawSpinChargeEffect(cat) {
   if (cat !== state.active || !state.aiming || state.gameOver) return;
-  const charge = clamp((Math.abs(state.spinVelocity) - ROT_FAST_THRESHOLD) / (ROT_MAX - ROT_FAST_THRESHOLD), 0, 1);
+  const spinVelocity = Number(cat.aimSpinVelocity || 0);
+  const charge = clamp((Math.abs(spinVelocity) - ROT_FAST_THRESHOLD) / (ROT_MAX - ROT_FAST_THRESHOLD), 0, 1);
   if (charge <= 0) return;
 
   const body = cat.body;
   const time = performance.now() / 1000;
-  const direction = state.spinVelocity >= 0 ? 1 : -1;
+  const direction = spinVelocity >= 0 ? 1 : -1;
   const radius = Math.max(cat.drawW, cat.drawH) * (0.48 + charge * 0.2);
   const flameCount = 9 + Math.round(charge * 10);
   const spin = time * direction * (4.4 + charge * 8.2);
