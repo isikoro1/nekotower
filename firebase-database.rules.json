@@ -6,9 +6,9 @@
       "queue": {
         "$uid": {
           ".write": "auth != null && ($uid === auth.uid || (data.child('status').val() === 'waiting' && newData.child('status').val() === 'matched' && newData.child('roomId').isString()))",
-          ".validate": "newData.hasChildren(['status', 'lastSeenAt']) && (newData.child('status').val() === 'waiting' || newData.child('status').val() === 'matched') && newData.child('lastSeenAt').isNumber() && (!newData.child('createdAt').exists() || newData.child('createdAt').isNumber()) && (!newData.child('matchedAt').exists() || newData.child('matchedAt').isNumber()) && (!newData.child('roomId').exists() || newData.child('roomId').isString()) && (!newData.child('displayName').exists() || newData.child('displayName').isString())",
+          ".validate": "newData.hasChildren(['status', 'lastSeenAt']) && (newData.child('status').val() === 'waiting' || newData.child('status').val() === 'matched') && newData.child('lastSeenAt').isNumber() && (!newData.child('createdAt').exists() || newData.child('createdAt').isNumber()) && (!newData.child('matchedAt').exists() || newData.child('matchedAt').isNumber()) && (!newData.child('roomId').exists() || newData.child('roomId').isString())",
           "$other": {
-            ".validate": "$other === 'status' || $other === 'createdAt' || $other === 'lastSeenAt' || $other === 'matchedAt' || $other === 'roomId' || $other === 'displayName'"
+            ".validate": "$other === 'status' || $other === 'createdAt' || $other === 'lastSeenAt' || $other === 'matchedAt' || $other === 'roomId'"
           }
         }
       }

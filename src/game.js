@@ -5,11 +5,8 @@ const gameHudEl = document.querySelector(".game-hud");
 const hudScoreEl = document.querySelector("#hudScore");
 const hudTurnEl = document.querySelector("#hudTurn");
 const hudStreakEl = document.createElement("span");
-const hudOpponentEl = document.createElement("span");
 const titleCatsEl = document.querySelector("#titleCats");
 const titleMenuEl = document.querySelector("#titleMenu");
-const playerNameRowEl = document.createElement("label");
-const playerNameInputEl = document.createElement("input");
 const howToPanelEl = document.querySelector("#howToPanel");
 const titleScreen = document.querySelector("#titleScreen");
 const gameOverScreen = document.querySelector("#gameOverScreen");
@@ -33,24 +30,11 @@ if (typeof gameHudEl?.insertBefore === "function") {
 } else {
   gameHudEl?.appendChild?.(hudStreakEl);
 }
-hudOpponentEl.id = "hudOpponent";
-hudOpponentEl.hidden = true;
-gameHudEl?.appendChild?.(hudOpponentEl);
 shareBestStreakBtn.id = "shareBestStreakBtn";
 shareBestStreakBtn.type = "button";
 shareBestStreakBtn.textContent = "Xで共有";
 shareBestStreakBtn.hidden = true;
 gameOverScreen?.appendChild?.(shareBestStreakBtn);
-playerNameRowEl.id = "playerNameRow";
-playerNameRowEl.textContent = "Player Name";
-playerNameInputEl.id = "playerNameInput";
-playerNameInputEl.type = "text";
-playerNameInputEl.inputMode = "latin";
-playerNameInputEl.maxLength = 12;
-playerNameInputEl.autocomplete = "nickname";
-playerNameInputEl.value = getPlayerName();
-playerNameRowEl.appendChild?.(playerNameInputEl);
-titleMenuEl?.insertBefore?.(playerNameRowEl, onlineBattleBtn);
 
 const { Bodies, Body, Common, Composite, Engine, Events, Sleeping, Vertices, Vector } = window.Matter;
 
@@ -169,25 +153,6 @@ function bestKey(stage) {
 
 function getBest(stage) {
   return Number(localStorage.getItem(bestKey(stage)) || 0);
-}
-
-function playerNameKey() {
-  return "cat-bowl-player-name";
-}
-
-function sanitizePlayerName(name = "") {
-  return String(name).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12);
-}
-
-function getPlayerName() {
-  return sanitizePlayerName(localStorage.getItem(playerNameKey()) || "") || "Player";
-}
-
-function savePlayerName(name) {
-  const cleaned = sanitizePlayerName(name) || "Player";
-  localStorage.setItem(playerNameKey(), cleaned);
-  playerNameInputEl.value = cleaned;
-  return cleaned;
 }
 
 state.best = getBest(state.stage);
@@ -678,9 +643,6 @@ function resetAimSpin() {
 function updateHud() {
   hudScoreEl.textContent = currentCatNumber();
   hudStreakEl.textContent = state.onlineWinStreak > 0 ? `${state.onlineWinStreak}連勝中` : "連勝 0";
-  const showOpponent = state.online.active && !state.online.finished && opponentUid();
-  hudOpponentEl.hidden = !showOpponent;
-  if (showOpponent) hudOpponentEl.textContent = `対戦相手: ${opponentName()}`;
   if (state.online.active) {
     if (state.online.finished) {
       hudTurnEl.textContent = "Online";
@@ -711,17 +673,15 @@ function streakMessage(didLose = false) {
 }
 
 function shareBestStreakUrl() {
-  const streak = state.onlineResultStreak;
-  const text =
-    state.onlineWinStreak > 0
-      ? `ねこタワーのオンライン対戦で${streak}連勝中！ #ねこタワー`
-      : `ねこタワーのオンライン対戦で${streak}連勝しました！ #ねこタワー`;
+  const text = state.online.active
+    ? `ねこタワーのオンライン対戦で${state.onlineResultStreak}連勝しました。 #ねこタワー`
+    : `ねこタワーで${state.score}匹まで積み上げました。 #ねこタワー`;
   const url = window.location?.origin && window.location.origin !== "null" ? window.location.origin : "https://nekotower.isikoro.dev/";
   return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
 }
 
 function updateShareBestStreakButton(visible = false) {
-  shareBestStreakBtn.hidden = !visible || state.onlineResultStreak <= 0;
+  shareBestStreakBtn.hidden = !visible;
 }
 
 function updateOnlineEntry() {
@@ -743,12 +703,11 @@ async function startOnlineBattle() {
     return;
   }
   if (state.matchmakingActive || state.online.active) return;
-  const playerName = savePlayerName(playerNameInputEl.value);
   reset("bowl");
   state.matchmakingActive = true;
   updateHud();
   onlineStatusEl.textContent = "対戦相手を待っています...";
-  online.startMatchmaking({ displayName: playerName }).catch(() => {
+  online.startMatchmaking().catch(() => {
     state.matchmakingActive = false;
     updateHud();
     onlineStatusEl.textContent = "オンライン接続に失敗しました";
@@ -792,10 +751,6 @@ async function startOnlineSession(match) {
     state.online.turnNo = Number(room.turnNo || 1);
     state.online.turnStartedAt = timeValue(room.turnStartedAt);
     state.online.players = room.players || {};
-    const matchedOpponentName = opponentName();
-    if (matchedOpponentName !== "Opponent" && !state.online.finished) {
-      onlineStatusEl.textContent = `${matchedOpponentName} とマッチしました`;
-    }
     if (room.stage && room.stage !== state.stage && STAGES[room.stage]) {
       reset(room.stage, { keepOnline: true });
     }
@@ -855,20 +810,6 @@ function isPlayerDisconnected(uid) {
 
 function isOnlineAuthority() {
   return isOnlineHost() || (state.online.active && isPlayerDisconnected(state.online.hostUid));
-}
-
-function onlineName(uid) {
-  if (!state.online.active) return "";
-  if (uid === state.online.uid) return getPlayerName();
-  return sanitizePlayerName(state.online.players?.[uid]?.displayName || "") || "Opponent";
-}
-
-function opponentUid() {
-  return onlinePlayerUids().find((uid) => uid !== state.online.uid) || "";
-}
-
-function opponentName() {
-  return onlineName(opponentUid()) || "Opponent";
 }
 
 function showTurnNotice(text) {
@@ -1263,7 +1204,7 @@ function lose(cat) {
         : `相手が${currentCatNumber()}匹目で落としました。${streakMessage(false)}`)
     : `終了。${state.score}匹入りました。Retryでもう一回。`;
   gameOverMessageEl.textContent = message;
-  updateShareBestStreakButton(state.online.active);
+  updateShareBestStreakButton(true);
   gameOverScreen.hidden = false;
   updateHud();
 }
@@ -1878,12 +1819,6 @@ shareBestStreakBtn.addEventListener?.("click", () => {
   const opened = window.open?.(shareUrl, "_blank", "noopener,noreferrer");
   if (!opened) window.location.href = shareUrl;
 });
-playerNameInputEl.addEventListener?.("input", () => {
-  const cleaned = sanitizePlayerName(playerNameInputEl.value);
-  if (playerNameInputEl.value !== cleaned) playerNameInputEl.value = cleaned;
-});
-playerNameInputEl.addEventListener?.("change", () => savePlayerName(playerNameInputEl.value));
-playerNameInputEl.addEventListener?.("blur", () => savePlayerName(playerNameInputEl.value));
 
 loadImages().then((images) => {
   state.loadedCats = images;

@@ -69,11 +69,11 @@
         });
       return this.initPromise;
     },
-    startMatchmaking(options = {}) {
+    startMatchmaking() {
       if (!this.isEnabled()) {
         return Promise.reject(new Error(this.reason || "Online battle is disabled."));
       }
-      return this.initialize().then((client) => startMatchmaking(client, this, options));
+      return this.initialize().then((client) => startMatchmaking(client, this));
     },
     watchRoom(roomId, onChange) {
       return this.initialize().then((client) => {
@@ -124,14 +124,9 @@
     };
   }
 
-  function sanitizeDisplayName(name = "") {
-    return String(name).replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) || "Player";
-  }
-
-  async function startMatchmaking(client, online, options = {}) {
+  async function startMatchmaking(client, online) {
     const db = client.database;
     const uid = client.user.uid;
-    const displayName = sanitizeDisplayName(options.displayName);
     const {
       child,
       get,
@@ -170,8 +165,7 @@
 
     const opponent = waitingPlayers.find(([waitingUid]) => waitingUid !== uid);
     if (opponent) {
-      const [opponentUid, opponentEntry] = opponent;
-      const opponentName = sanitizeDisplayName(opponentEntry?.displayName);
+      const [opponentUid] = opponent;
       const roomRef = push(roomsRef);
       const roomId = roomRef.key;
       const updates = {};
@@ -189,13 +183,13 @@
             joinedAt: serverTimestamp(),
             lastSeenAt: serverTimestamp(),
             connected: true,
-            displayName: opponentName,
+            displayName: "Player 1",
           },
           [uid]: {
             joinedAt: serverTimestamp(),
             lastSeenAt: serverTimestamp(),
             connected: true,
-            displayName,
+            displayName: "Player 2",
           },
         },
       };
@@ -217,19 +211,10 @@
     }
 
     const ownQueueRef = child(queueRef, uid);
-    const queueEntry = {
+    await set(ownQueueRef, {
       status: "waiting",
       createdAt: now,
       lastSeenAt: now,
-      displayName,
-    };
-    await set(ownQueueRef, queueEntry).catch((error) => {
-      if (!String(error?.code || error?.message || "").toLowerCase().includes("permission")) throw error;
-      return set(ownQueueRef, {
-        status: queueEntry.status,
-        createdAt: queueEntry.createdAt,
-        lastSeenAt: queueEntry.lastSeenAt,
-      });
     });
     onDisconnect(ownQueueRef).remove();
 

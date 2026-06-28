@@ -110,16 +110,6 @@ canvas {
   opacity: 0.82;
 }
 
-#hudOpponent {
-  flex-basis: 100%;
-  font-size: 0.86rem;
-  opacity: 0.82;
-  overflow: hidden;
-  text-align: left;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .overlay {
   align-content: center;
   background: rgba(244, 250, 252, 0.88);
@@ -205,25 +195,6 @@ canvas {
 .title-menu[hidden],
 .howto-panel[hidden] {
   display: none;
-}
-
-#playerNameRow {
-  color: #52646b;
-  display: grid;
-  font-size: 0.9rem;
-  gap: 4px;
-  text-align: left;
-  width: min(390px, 100%);
-}
-
-#playerNameInput {
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(116, 154, 170, 0.46);
-  border-radius: 8px;
-  color: #1d2b32;
-  font: inherit;
-  padding: 9px 10px;
-  width: 100%;
 }
 
 .title-cats {
