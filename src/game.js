@@ -66,6 +66,9 @@ const CAT_RECENT_LIMIT = 18;
 const ONLINE_TURN_LIMIT_MS = 15000;
 const ONLINE_HEARTBEAT_MS = 3000;
 const ONLINE_DISCONNECT_MS = 9000;
+const INITIAL_CAT_LOAD_COUNT = 12;
+const BACKGROUND_CAT_LOAD_DELAY_MS = 1200;
+const BACKGROUND_CAT_LOAD_INTERVAL_MS = 160;
 
 if (window.decomp) {
   Common.setDecomp(window.decomp);
@@ -149,6 +152,7 @@ let lastMeowIndex = -1;
 let audioUnlocked = false;
 let audioUnlocking = false;
 let pendingMeow = false;
+const catLoadPromises = new Map();
 
 function bestKey(stage) {
   return `cat-bowl-best:${stage}`;
@@ -242,25 +246,65 @@ function unlockAudio() {
   });
 }
 
-function loadImages() {
-  const names = window.CAT_ASSETS || [];
-  return Promise.all(
-    names.map(
-      (name) =>
-        new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve({ name, img });
-          img.onerror = () => resolve(null);
-          img.src = `./assets/trimcats/${encodeURIComponent(name)}`;
-        }),
-    ),
-  ).then((images) => images.filter(Boolean));
+function shuffleCats(names) {
+  const shuffled = [...names];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+function addLoadedCat(asset) {
+  if (!asset || state.loadedCats.some((cat) => cat.name === asset.name)) return;
+  state.loadedCats.push(asset);
+}
+
+function loadCatImage(name) {
+  if (!name) return Promise.resolve(null);
+  const loaded = findCatAsset(name);
+  if (loaded) return Promise.resolve(loaded);
+  if (catLoadPromises.has(name)) return catLoadPromises.get(name);
+  const promise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ name, img });
+    img.onerror = () => resolve(null);
+    img.src = `./assets/trimcats/${encodeURIComponent(name)}`;
+  }).then((asset) => {
+    catLoadPromises.delete(name);
+    addLoadedCat(asset);
+    return asset;
+  });
+  catLoadPromises.set(name, promise);
+  return promise;
+}
+
+function loadImages(names) {
+  return Promise.all(names.map((name) => loadCatImage(name))).then((images) => images.filter(Boolean));
+}
+
+function loadInitialImages() {
+  const names = shuffleCats(window.CAT_ASSETS || []);
+  return loadImages(names.slice(0, INITIAL_CAT_LOAD_COUNT));
+}
+
+function loadRemainingImages() {
+  const names = shuffleCats(window.CAT_ASSETS || []).filter((name) => !findCatAsset(name));
+  let index = 0;
+  const loadNext = () => {
+    if (index >= names.length) return;
+    loadCatImage(names[index]).finally(() => {
+      index += 1;
+      window.setTimeout(loadNext, BACKGROUND_CAT_LOAD_INTERVAL_MS);
+    });
+  };
+  window.setTimeout(loadNext, BACKGROUND_CAT_LOAD_DELAY_MS);
 }
 
 function populateTitleCats(images) {
   if (!titleCatsEl) return;
   titleCatsEl.replaceChildren();
-  const shuffled = [...images].sort(() => Math.random() - 0.5).slice(0, 18);
+  const shuffled = shuffleCats(images).slice(0, 18);
   for (const asset of shuffled) {
     const img = document.createElement("img");
     img.src = `./assets/trimcats/${encodeURIComponent(asset.name)}`;
@@ -880,6 +924,26 @@ function syncOnlineTurnSetup(room) {
   const turnNo = Number(room.turnNo || 1);
   const currentCatName = room.currentCatName || "";
   if (currentCatName && (state.active.name !== currentCatName || state.active.onlineTurnNo !== turnNo)) {
+    if (!findCatAsset(currentCatName)) {
+      loadCatImage(currentCatName).then((asset) => {
+        if (
+          !asset ||
+          !state.online.active ||
+          state.gameOver ||
+          Number(state.online.turnNo || 1) !== turnNo ||
+          state.active?.dropped
+        ) {
+          return;
+        }
+        replaceActiveCat(currentCatName, turnNo);
+        applyRemoteAim({
+          aimX: Number(room.currentAimX || W / 2),
+          angle: Number(room.currentAngle || 0),
+          spinVelocity: 0,
+        });
+      });
+      return;
+    }
     replaceActiveCat(currentCatName, turnNo);
     applyRemoteAim({
       aimX: Number(room.currentAimX || W / 2),
@@ -896,6 +960,7 @@ function syncOnlineTurnSetup(room) {
 
 function replaceActiveCat(catName, turnNo) {
   if (!state.active || state.active.dropped) return;
+  if (!findCatAsset(catName)) return;
   resetAimSpin();
   Composite.remove(physics.engine.world, state.active.body);
   const index = state.cats.indexOf(state.active);
@@ -1886,7 +1951,7 @@ shareBestStreakBtn.addEventListener?.("click", () => {
   if (!opened) window.location.href = shareUrl;
 });
 
-loadImages().then((images) => {
+loadInitialImages().then((images) => {
   state.loadedCats = images;
   buildWorld();
   if (images.length === 0) {
@@ -1898,6 +1963,7 @@ loadImages().then((images) => {
   reset("bowl");
   showTitle();
   updateOnlineEntry();
+  loadRemainingImages();
   requestAnimationFrame(loop);
 });
 
