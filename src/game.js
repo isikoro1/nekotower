@@ -67,6 +67,7 @@ const ONLINE_TURN_LIMIT_MS = 15000;
 const ONLINE_HEARTBEAT_MS = 3000;
 const ONLINE_DISCONNECT_MS = 9000;
 const INITIAL_CAT_LOAD_COUNT = 12;
+const TITLE_CAT_COUNT = 3;
 const BACKGROUND_CAT_LOAD_DELAY_MS = 1200;
 const BACKGROUND_CAT_LOAD_INTERVAL_MS = 160;
 
@@ -97,6 +98,7 @@ const state = {
   screen: "title",
   gameOver: false,
   matchmakingActive: false,
+  matchmakingStatusText: "",
   lastDropAt: 0,
   cameraY: 0,
   targetCameraY: 0,
@@ -304,7 +306,7 @@ function loadRemainingImages() {
 function populateTitleCats(images) {
   if (!titleCatsEl) return;
   titleCatsEl.replaceChildren();
-  const shuffled = shuffleCats(images).slice(0, 18);
+  const shuffled = shuffleCats(images).slice(0, TITLE_CAT_COUNT);
   for (const asset of shuffled) {
     const img = document.createElement("img");
     img.src = `./assets/trimcats/${encodeURIComponent(asset.name)}`;
@@ -732,7 +734,7 @@ function updateHud() {
       hudTurnEl.textContent = state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番";
     }
   } else if (state.matchmakingActive) {
-    hudTurnEl.textContent = "マッチ待ち";
+    hudTurnEl.textContent = state.matchmakingStatusText || "マッチ待ち";
   } else {
     hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
   }
@@ -786,7 +788,10 @@ function refreshMatchmakingStatus() {
   if (!state.matchmakingActive || state.online.active || !onlineStatusEl) return;
   const status = window.NekoTowerOnline?.getStatus?.() || {};
   if (status.matchStatus === "waiting") {
-    onlineStatusEl.textContent = onlineWaitingMessage(status);
+    const message = onlineWaitingMessage(status);
+    state.matchmakingStatusText = message.replace("対戦相手を待っています", "マッチ待ち");
+    onlineStatusEl.textContent = message;
+    updateHud();
   }
 }
 
@@ -811,17 +816,20 @@ async function startOnlineBattle() {
   if (state.matchmakingActive || state.online.active) return;
   reset("bowl");
   state.matchmakingActive = true;
+  state.matchmakingStatusText = "マッチ待ち";
   updateHud();
   onlineStatusEl.textContent = "対戦相手を待っています...";
   const statusTimer = window.setInterval(refreshMatchmakingStatus, 1000);
   online.startMatchmaking().catch(() => {
     state.matchmakingActive = false;
+    state.matchmakingStatusText = "";
     window.clearInterval(statusTimer);
     updateHud();
     onlineStatusEl.textContent = "オンライン接続に失敗しました";
   }).then((result) => {
     if (!result) return;
     state.matchmakingActive = false;
+    state.matchmakingStatusText = "";
     window.clearInterval(statusTimer);
     updateHud();
     if (result.status === "matched") {
@@ -1323,6 +1331,7 @@ function lose(cat) {
   if (state.matchmakingActive && !state.online.active) {
     reset(state.stage);
     state.matchmakingActive = true;
+    state.matchmakingStatusText ||= "マッチ待ち";
     onlineStatusEl.textContent = "対戦相手を待っています";
     updateHud();
     return;
@@ -1359,6 +1368,7 @@ function showHowTo() {
 function showTitle() {
   clearOnlineSession();
   state.matchmakingActive = false;
+  state.matchmakingStatusText = "";
   gameOverTitleEl.textContent = "GAME OVER";
   clearResultTone();
   state.screen = "title";
@@ -1374,11 +1384,13 @@ function showTitle() {
 function retryGame() {
   if (!state.online.active) {
     state.matchmakingActive = false;
+    state.matchmakingStatusText = "";
     reset(state.stage);
     return;
   }
   clearOnlineSession(false);
   state.matchmakingActive = false;
+  state.matchmakingStatusText = "";
   state.screen = "title";
   state.gameOver = false;
   state.aiming = false;
