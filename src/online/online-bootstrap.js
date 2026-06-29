@@ -45,6 +45,8 @@
         uid: this.client?.user?.uid || "",
         roomId: this.match?.roomId || "",
         matchStatus: this.match?.status || "",
+        queuePosition: Number(this.match?.queuePosition || 0),
+        estimatedWaitMs: Number(this.match?.estimatedWaitMs || 0),
       };
     },
     async initialize() {

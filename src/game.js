@@ -766,6 +766,30 @@ function updateShareBestStreakButton(visible = false) {
   shareBestStreakBtn.hidden = !visible;
 }
 
+function formatWaitTime(ms) {
+  const seconds = Math.max(0, Math.round(Number(ms || 0) / 1000));
+  if (seconds <= 0) return "";
+  if (seconds < 60) return `目安${seconds}秒`;
+  return `目安${Math.ceil(seconds / 60)}分`;
+}
+
+function onlineWaitingMessage(match = {}) {
+  const position = Number(match.queuePosition || 0);
+  const wait = formatWaitTime(match.estimatedWaitMs);
+  const details = [];
+  if (position > 0) details.push(`待ち順 ${position}番目`);
+  if (wait) details.push(wait);
+  return details.length ? `対戦相手を待っています（${details.join(" / ")}）` : "対戦相手を待っています";
+}
+
+function refreshMatchmakingStatus() {
+  if (!state.matchmakingActive || state.online.active || !onlineStatusEl) return;
+  const status = window.NekoTowerOnline?.getStatus?.() || {};
+  if (status.matchStatus === "waiting") {
+    onlineStatusEl.textContent = onlineWaitingMessage(status);
+  }
+}
+
 function updateOnlineEntry() {
   const online = window.NekoTowerOnline;
   if (!onlineBattleBtn || !onlineStatusEl) return;
@@ -789,20 +813,23 @@ async function startOnlineBattle() {
   state.matchmakingActive = true;
   updateHud();
   onlineStatusEl.textContent = "対戦相手を待っています...";
+  const statusTimer = window.setInterval(refreshMatchmakingStatus, 1000);
   online.startMatchmaking().catch(() => {
     state.matchmakingActive = false;
+    window.clearInterval(statusTimer);
     updateHud();
     onlineStatusEl.textContent = "オンライン接続に失敗しました";
   }).then((result) => {
     if (!result) return;
     state.matchmakingActive = false;
+    window.clearInterval(statusTimer);
     updateHud();
     if (result.status === "matched") {
       startOnlineSession(result).catch(() => {
         onlineStatusEl.textContent = "オンライン対戦の開始に失敗しました";
       });
     } else if (result.status === "waiting") {
-      onlineStatusEl.textContent = "対戦相手を待っています";
+      onlineStatusEl.textContent = onlineWaitingMessage(result);
     } else if (result.status === "full") {
       onlineStatusEl.textContent = "ただいま混雑中です。少し待ってください";
     } else if (result.status === "timeout") {
