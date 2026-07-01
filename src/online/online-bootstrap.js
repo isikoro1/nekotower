@@ -144,23 +144,19 @@
     const now = Date.now();
     const queueRef = ref(db, "matchmaking/queue");
     const roomsRef = ref(db, "rooms");
-    const [queueSnapshot, roomsSnapshot] = await Promise.all([get(queueRef), get(roomsRef)]);
+    const queueSnapshot = await get(queueRef);
     const queue = queueSnapshot.val() || {};
-    const rooms = roomsSnapshot.val() || {};
     const waitingPlayers = Object.entries(queue)
       .filter(([, entry]) => entry?.status === "waiting" && now - Number(entry.lastSeenAt || 0) < MATCH_LIMITS.staleMs)
       .sort(([, a], [, b]) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-    const activeRooms = Object.values(rooms).filter(
-      (room) => room && (room.status === "matching" || room.status === "playing") && now - Number(room.updatedAt || 0) < MATCH_LIMITS.staleMs,
-    );
 
-    if (activeRooms.length >= MATCH_LIMITS.maxActiveRooms || waitingPlayers.length >= MATCH_LIMITS.maxWaitingPlayers) {
+    if (waitingPlayers.length >= MATCH_LIMITS.maxWaitingPlayers) {
       const position = waitingPlayers.findIndex(([waitingUid]) => waitingUid === uid);
       online.match = {
         status: "full",
         roomId: "",
         queuePosition: position >= 0 ? position + 1 : waitingPlayers.length + 1,
-        estimatedWaitMs: estimateWaitMs(waitingPlayers.length + 1, activeRooms.length),
+        estimatedWaitMs: estimateWaitMs(waitingPlayers.length + 1),
       };
       return online.match;
     }
@@ -249,14 +245,14 @@
         status: "waiting",
         roomId: "",
         queuePosition: waitingPlayers.length + 1,
-        estimatedWaitMs: estimateWaitMs(waitingPlayers.length + 1, activeRooms.length),
+        estimatedWaitMs: estimateWaitMs(waitingPlayers.length + 1),
       };
     });
   }
 
-  function estimateWaitMs(queuePosition, activeRoomCount) {
+  function estimateWaitMs(queuePosition) {
     const roomTurnoverMs = 90 * 1000;
-    const activeSlots = Math.max(1, MATCH_LIMITS.maxActiveRooms - activeRoomCount);
+    const activeSlots = Math.max(1, MATCH_LIMITS.maxActiveRooms);
     return Math.ceil(queuePosition / activeSlots) * roomTurnoverMs;
   }
 })();
