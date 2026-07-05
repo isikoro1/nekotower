@@ -780,7 +780,7 @@ function onlineWaitingMessage(match = {}) {
   const wait = formatWaitTime(match.estimatedWaitMs);
   const details = [];
   if (position <= 1) {
-    details.push("待ち先頭");
+    details.push("待機中 0人");
     details.push("相手待ち");
   } else {
     details.push(`待ち順 ${position}番目`);
@@ -849,7 +849,7 @@ async function startOnlineBattle() {
   reset("bowl");
   state.matchmakingActive = true;
   state.matchmakingStatusText =
-    summary && Number(summary.waitingCount || 0) > 0 ? `マッチ待ち（待機中 ${summary.waitingCount}人）` : "マッチ待ち（相手待ち）";
+    summary && Number(summary.waitingCount || 0) > 0 ? `マッチ待ち（待機中 ${summary.waitingCount}人）` : "マッチ待ち（待機中 0人）";
   updateHud();
   onlineStatusEl.textContent =
     summary && Number(summary.waitingCount || 0) > 0
