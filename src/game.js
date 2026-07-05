@@ -779,9 +779,44 @@ function onlineWaitingMessage(match = {}) {
   const position = Number(match.queuePosition || 0);
   const wait = formatWaitTime(match.estimatedWaitMs);
   const details = [];
-  if (position > 0) details.push(`待ち順 ${position}番目`);
-  if (wait) details.push(wait);
+  if (position <= 1) {
+    details.push("待ち先頭");
+    details.push("相手待ち");
+  } else {
+    details.push(`待ち順 ${position}番目`);
+    if (wait) details.push(wait);
+  }
   return details.length ? `対戦相手を待っています（${details.join(" / ")}）` : "対戦相手を待っています";
+}
+
+function onlineAvailabilityMessage(summary = {}) {
+  const count = Number(summary.waitingCount || 0);
+  if (count > 0) return `待機中 ${count}人。今ならマッチしやすいです`;
+  return "待機中 0人。友だちを呼ぶか、待機しながら遊べます";
+}
+
+function updateOnlineAvailability(summary = {}) {
+  if (!onlineBattleBtn || !onlineStatusEl) return;
+  const count = Number(summary.waitingCount || 0);
+  onlineBattleBtn.textContent = count > 0 ? `オンライン対戦（待機中 ${count}人）` : "待機しながら遊ぶ";
+  onlineStatusEl.textContent = onlineAvailabilityMessage(summary);
+}
+
+function refreshOnlineAvailability() {
+  const online = window.NekoTowerOnline;
+  if (!online?.isEnabled?.() || !onlineStatusEl) return;
+  onlineStatusEl.textContent = "オンライン待機人数を確認中...";
+  online
+    .getMatchmakingSummary?.()
+    .then((summary) => {
+      if (state.screen !== "title" || state.matchmakingActive || state.online.active) return;
+      updateOnlineAvailability(summary);
+    })
+    .catch(() => {
+      if (state.screen !== "title" || state.matchmakingActive || state.online.active) return;
+      onlineBattleBtn.textContent = "オンライン対戦";
+      onlineStatusEl.textContent = "待機人数を確認できませんでした";
+    });
 }
 
 function refreshMatchmakingStatus() {
@@ -800,11 +835,13 @@ function updateOnlineEntry() {
   if (!onlineBattleBtn || !onlineStatusEl) return;
   if (!online?.isEnabled?.()) {
     onlineBattleBtn.disabled = true;
+    onlineBattleBtn.textContent = "オンライン対戦";
     onlineStatusEl.textContent = "オンライン対戦は準備中です";
     return;
   }
   onlineBattleBtn.disabled = false;
-  onlineStatusEl.textContent = "オンライン接続を確認できます";
+  onlineBattleBtn.textContent = "オンライン対戦";
+  refreshOnlineAvailability();
 }
 
 async function startOnlineBattle() {

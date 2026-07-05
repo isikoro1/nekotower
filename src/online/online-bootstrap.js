@@ -77,6 +77,12 @@
       }
       return this.initialize().then((client) => startMatchmaking(client, this));
     },
+    getMatchmakingSummary() {
+      if (!this.isEnabled()) {
+        return Promise.reject(new Error(this.reason || "Online battle is disabled."));
+      }
+      return this.initialize().then((client) => readMatchmakingSummary(client));
+    },
     watchRoom(roomId, onChange) {
       return this.initialize().then((client) => {
         const { onValue, ref } = client.databaseModule;
@@ -146,9 +152,7 @@
     const roomsRef = ref(db, "rooms");
     const queueSnapshot = await get(queueRef);
     const queue = queueSnapshot.val() || {};
-    const waitingPlayers = Object.entries(queue)
-      .filter(([, entry]) => entry?.status === "waiting" && now - Number(entry.lastSeenAt || 0) < MATCH_LIMITS.staleMs)
-      .sort(([, a], [, b]) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    const waitingPlayers = waitingPlayersFromQueue(queue, now);
 
     if (waitingPlayers.length >= MATCH_LIMITS.maxWaitingPlayers) {
       const position = waitingPlayers.findIndex(([waitingUid]) => waitingUid === uid);
@@ -254,5 +258,24 @@
     const roomTurnoverMs = 90 * 1000;
     const activeSlots = Math.max(1, MATCH_LIMITS.maxActiveRooms);
     return Math.ceil(queuePosition / activeSlots) * roomTurnoverMs;
+  }
+
+  async function readMatchmakingSummary(client) {
+    const { get, ref } = client.databaseModule;
+    const now = Date.now();
+    const queueSnapshot = await get(ref(client.database, "matchmaking/queue"));
+    const queue = queueSnapshot.val() || {};
+    const waitingPlayers = waitingPlayersFromQueue(queue, now).filter(([waitingUid]) => waitingUid !== client.user.uid);
+    return {
+      waitingCount: waitingPlayers.length,
+      canMatchNow: waitingPlayers.length > 0,
+      checkedAt: now,
+    };
+  }
+
+  function waitingPlayersFromQueue(queue, now) {
+    return Object.entries(queue)
+      .filter(([, entry]) => entry?.status === "waiting" && now - Number(entry.lastSeenAt || 0) < MATCH_LIMITS.staleMs)
+      .sort(([, a], [, b]) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
   }
 })();
