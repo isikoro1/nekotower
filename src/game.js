@@ -795,28 +795,19 @@ function onlineAvailabilityMessage(summary = {}) {
   return "待機中 0人。友だちを呼ぶか、待機しながら遊べます";
 }
 
-function updateOnlineAvailability(summary = {}) {
-  if (!onlineBattleBtn || !onlineStatusEl) return;
-  const count = Number(summary.waitingCount || 0);
-  onlineBattleBtn.textContent = count > 0 ? `オンライン対戦（待機中 ${count}人）` : "待機しながら遊ぶ";
-  onlineStatusEl.textContent = onlineAvailabilityMessage(summary);
-}
-
-function refreshOnlineAvailability() {
+async function checkOnlineAvailability() {
   const online = window.NekoTowerOnline;
-  if (!online?.isEnabled?.() || !onlineStatusEl) return;
+  if (!online?.isEnabled?.() || !onlineStatusEl) return null;
   onlineStatusEl.textContent = "オンライン待機人数を確認中...";
-  online
-    .getMatchmakingSummary?.()
-    .then((summary) => {
-      if (state.screen !== "title" || state.matchmakingActive || state.online.active) return;
-      updateOnlineAvailability(summary);
-    })
-    .catch(() => {
-      if (state.screen !== "title" || state.matchmakingActive || state.online.active) return;
-      onlineBattleBtn.textContent = "オンライン対戦";
-      onlineStatusEl.textContent = "待機人数を確認できませんでした";
-    });
+  try {
+    const summary = await online.getMatchmakingSummary?.();
+    if (!summary) return null;
+    onlineStatusEl.textContent = onlineAvailabilityMessage(summary);
+    return summary;
+  } catch {
+    onlineStatusEl.textContent = "待機人数を確認できませんでした。そのまま待機できます";
+    return null;
+  }
 }
 
 function refreshMatchmakingStatus() {
@@ -841,7 +832,7 @@ function updateOnlineEntry() {
   }
   onlineBattleBtn.disabled = false;
   onlineBattleBtn.textContent = "オンライン対戦";
-  refreshOnlineAvailability();
+  onlineStatusEl.textContent = "オンライン対戦できます";
 }
 
 async function startOnlineBattle() {
@@ -851,11 +842,19 @@ async function startOnlineBattle() {
     return;
   }
   if (state.matchmakingActive || state.online.active) return;
+  onlineBattleBtn.disabled = true;
+  const summary = await checkOnlineAvailability();
+  onlineBattleBtn.disabled = false;
+  if (state.matchmakingActive || state.online.active) return;
   reset("bowl");
   state.matchmakingActive = true;
-  state.matchmakingStatusText = "マッチ待ち";
+  state.matchmakingStatusText =
+    summary && Number(summary.waitingCount || 0) > 0 ? `マッチ待ち（待機中 ${summary.waitingCount}人）` : "マッチ待ち（相手待ち）";
   updateHud();
-  onlineStatusEl.textContent = "対戦相手を待っています...";
+  onlineStatusEl.textContent =
+    summary && Number(summary.waitingCount || 0) > 0
+      ? `待機中 ${summary.waitingCount}人。対戦相手を探しています`
+      : "待機中 0人。待ちながら遊べます";
   const statusTimer = window.setInterval(refreshMatchmakingStatus, 1000);
   online.startMatchmaking().catch(() => {
     state.matchmakingActive = false;
