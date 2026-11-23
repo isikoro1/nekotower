@@ -1,0 +1,307 @@
+/* Presentation only: keep canvas coordinates and physics in src/game.js intact. */
+:root {
+  --ink: #203b42;
+  --muted: #587179;
+  --accent: #d75934;
+  --edge: #d0e1e3;
+  background: #19363b;
+  color: var(--ink);
+}
+
+body {
+  background: radial-gradient(ellipse at 50% 0, #33575d, #19363b 70%);
+}
+
+.app {
+  max-width: none;
+  padding: 20px;
+  min-height: 100svh;
+  align-items: center;
+}
+
+.game-shell {
+  width: min(100%, calc((100dvh - 40px) * .75));
+  gap: 0;
+}
+
+canvas {
+  background: linear-gradient(160deg, #f6fbfc, #e8f3f4 75%, #d8ebec);
+  border: 1px solid #ffffff80;
+  border-radius: 24px;
+  box-shadow: 0 24px 80px #061e244d;
+}
+
+button {
+  min-height: 48px;
+  border: 1px solid var(--edge);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 650;
+  transition: background .15s, border-color .15s, box-shadow .15s;
+}
+
+button:hover {
+  background: #edf5f5;
+  border-color: #7a9a9f;
+  outline: none;
+}
+
+button:focus-visible {
+  outline: 3px solid #d75934;
+  outline-offset: 3px;
+}
+
+button:active {
+  box-shadow: inset 0 2px 5px #183d421f;
+}
+
+.game-hud {
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  padding: 10px 16px;
+  border: 1px solid #d7e6e9;
+  border-radius: 16px;
+  background: #ffffffeb;
+  box-shadow: 0 5px 20px #244d5409;
+  gap: 8px;
+  font-size: .875rem;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+#hudScore {
+  font-size: 1.8rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  margin-right: 5px;
+}
+
+#hudTurn {
+  background: #e7f0f1;
+  border-radius: 30px;
+  padding: 4px 10px;
+  font-size: .875rem;
+}
+
+#hudStreak {
+  font-size: .875rem;
+  opacity: 1;
+}
+
+.overlay {
+  top: 50%;
+  max-width: min(400px, calc(100% - 40px));
+  max-height: calc(100% - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #f9fcfcf7;
+  border: 1px solid #fff;
+  border-radius: 22px;
+  box-shadow: 0 20px 60px #21485126;
+  padding: 28px;
+  gap: 20px;
+}
+
+.overlay h2 {
+  font-size: clamp(30px, 5.5vw, 48px);
+  letter-spacing: -.045em;
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.overlay p {
+  color: var(--muted);
+}
+
+.title-menu,
+.howto-panel {
+  gap: 12px;
+}
+
+.title-cats {
+  min-height: 85px;
+  max-height: 125px;
+  gap: 8px;
+  margin: 8px 0 12px;
+  padding-block: 8px;
+  background: radial-gradient(ellipse, #dceced 0, transparent 70%);
+}
+
+.title-cats img {
+  filter: drop-shadow(0 5px 3px #203b4226);
+}
+
+.stage-buttons {
+  gap: 10px;
+}
+
+.stage-buttons button {
+  display: flex;
+  align-items: center;
+  font-size: .875rem;
+  min-height: 58px;
+  text-align: left;
+  padding: 0 14px;
+}
+
+.stage-buttons button::before {
+  flex-shrink: 0;
+  display: inline-block;
+  width: 21px;
+  height: 14px;
+  margin-right: 9px;
+  content: '';
+  vertical-align: middle;
+  border: 2px solid #689097;
+  border-radius: 0 0 12px 12px;
+}
+
+#stagePlatformBtn::before {
+  height: 0;
+  border-width: 2px 0 0;
+  border-radius: 0;
+}
+
+#stageTowerBtn::before {
+  border-radius: 2px;
+  border-width: 2px 0 0 2px;
+  width: 16px;
+  height: 21px;
+}
+
+#stageBottleBtn::before {
+  border-radius: 5px 5px 8px 8px;
+  width: 13px;
+  height: 19px;
+}
+
+.online-button,
+#retryBtn {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+  min-height: 50px;
+}
+
+.online-button:hover,
+#retryBtn:hover {
+  background: #31545b;
+  border-color: #31545b;
+}
+
+.online-button:disabled {
+  background: #e7edef;
+  border-color: #dae5e7;
+  color: #667e84;
+}
+
+.online-status {
+  font-size: .875rem;
+  min-height: 0;
+  line-height: 1.5;
+}
+
+.online-status:empty {
+  display: none;
+}
+
+#howToBtn,
+#toTitleBtn {
+  background: transparent;
+}
+
+.controls-guide section {
+  background: #eef5f5;
+  border-color: var(--edge);
+  border-radius: 12px;
+}
+
+.controls-guide ul {
+  font-size: .9rem;
+}
+
+.touch-controls button {
+  background: #ffffffed;
+  border: 1px solid #c9dcdf;
+  box-shadow: 0 5px 18px #24474e14;
+}
+
+#rotLeftBtn,
+#rotRightBtn {
+  font-size: 28px;
+  color: var(--ink);
+}
+
+#dropBtn {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  border-radius: 14px;
+  font-size: 1rem;
+  min-height: 50px;
+}
+
+#dropBtn:hover {
+  background: #bb4928;
+}
+
+.game-over-screen.win,
+.game-over-screen.lose {
+  background: #f9fcfcfa;
+}
+
+.game-over-screen.win h2,
+.game-over-screen.lose h2 {
+  text-shadow: none;
+}
+
+@media (max-width: 760px) {
+  .app {
+    padding: 8px;
+  }
+
+  .game-shell {
+    width: min(100%, calc((100dvh - 16px) * .75));
+  }
+
+  canvas {
+    border-radius: 18px;
+  }
+
+  .game-hud {
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    padding: 9px 12px;
+  }
+
+  .overlay {
+    max-width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
+    padding: 22px 18px;
+    border-radius: 18px;
+    gap: 16px;
+  }
+
+  .stage-buttons button {
+    padding-inline: 10px;
+    font-size: .8125rem;
+    min-height: 52px;
+  }
+
+  .title-cats {
+    min-height: 60px;
+    max-height: 85px;
+    margin-block: 0 6px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
+}

@@ -14,13 +14,14 @@
     <meta name="twitter:title" content="ねこタワー" />
     <meta name="twitter:description" content="変な形の猫を積む物理パズルゲーム。オンライン対戦で連勝を目指そう。" />
     <link rel="stylesheet" href="./styles.css?v=20260628-share-2" />
+    <link rel="stylesheet" href="./theme.css?v=20261124-1" />
   </head>
   <body>
     <main class="app">
       <section class="game-shell">
-        <canvas id="game" width="900" height="1200" aria-label="cat bowl physics game"></canvas>
+        <canvas id="game" width="900" height="1200" aria-label="ねこを積み上げるゲーム画面"></canvas>
 
-        <div class="game-hud" aria-label="game status">
+        <div class="game-hud" aria-label="ゲーム状況">
           <span><strong id="hudScore">1</strong>匹目</span>
           <span id="hudTurn">Solo</span>
         </div>
@@ -48,7 +49,7 @@
                 <ul>
                   <li>ドラッグ: 左右移動</li>
                   <li>左右の丸ボタン: 回転</li>
-                  <li>Dropボタン: 落下</li>
+                  <li>落とすボタン: 落下</li>
                 </ul>
               </section>
               <section>
@@ -71,10 +72,10 @@
           <button id="toTitleBtn" type="button">タイトルへ</button>
         </section>
 
-        <div class="touch-controls" aria-label="touch controls">
-          <button id="rotLeftBtn" type="button">↺</button>
-          <button id="dropBtn" type="button">Drop</button>
-          <button id="rotRightBtn" type="button">↻</button>
+        <div class="touch-controls" aria-label="ゲーム操作">
+          <button id="rotLeftBtn" type="button" aria-label="左に回転">↺</button>
+          <button id="dropBtn" type="button">落とす</button>
+          <button id="rotRightBtn" type="button" aria-label="右に回転">↻</button>
         </div>
       </section>
     </main>
