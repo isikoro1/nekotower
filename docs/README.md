@@ -4,6 +4,7 @@
 | --- | --- |
 | 現行機能と受入条件 | [spec.md](spec.md) |
 | 構造・状態遷移・判断理由 | [architecture.md](architecture.md) |
+| オンラインの静的セキュリティレビューと未対応事項 | [security-review.md](security-review.md) |
 | 検証方法 | [testing.md](testing.md) |
 | 要望とデザイン方針の記録 | [requests.md](requests.md) |
 | 共通のAI開発方針（提供された原文） | [ai-development-guidelines.md](ai-development-guidelines.md) |

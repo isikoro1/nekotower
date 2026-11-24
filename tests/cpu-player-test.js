@@ -4,7 +4,7 @@ for (const stage of ['bowl','platform','tower','bottle']) {
   const move = plan([], stage, 1000, () => .5);
   assert.equal(move.x, stage === 'tower' ? 400 : 450);
   assert.equal(move.angle, 0);
-  assert.equal(move.dropAt, 3400);
+  assert.equal(move.dropAt, 2800);
 }
 const cat = (x,y,dropped=true) => ({dropped,body:{position:{x},bounds:{min:{y},max:{y:y+30}}}});
 assert.equal(plan([cat(300,800),cat(550,500),cat(450,100,false)],'bowl',0,()=>.5).x,550);

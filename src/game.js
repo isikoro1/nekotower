@@ -691,6 +691,7 @@ function clearOnlineSession(resetStatus = true) {
 function reset(stage = state.stage, options = {}) {
   if (physics.engine) Events.off(physics.engine);
   if (!options.keepOnline) clearOnlineSession(false);
+  state.cpu.plan?.cancel?.();
   state.cpu = { active: Boolean(options.cpu), turn: "human", plan: null, notice: "" };
   state.keys.clear();
   state.pointerX = null;
@@ -1326,7 +1327,7 @@ function dropActive(source = "local") {
   Body.setVelocity(body, { x: 0, y: 1.8 });
   const aimSpin = source === "local" ? state.spinVelocity : Number(state.active.aimSpinVelocity || 0);
   const hasCurveSpin = Math.abs(aimSpin) > 0.004;
-  const spin = hasCurveSpin ? aimSpin * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
+  const spin = source === "cpu" ? 0 : hasCurveSpin ? aimSpin * DROP_SPIN_MULTIPLIER : rand(-0.012, 0.012);
   Body.setAngularVelocity(body, spin);
   state.active.curveSpin = hasCurveSpin ? spin : 0;
   Body.setPosition(body, { x: body.position.x, y: body.position.y + 3 });
@@ -1386,6 +1387,7 @@ function nextTurn() {
   }
   if (state.cpu.active) {
     state.cpu.turn = state.cpu.turn === "human" ? "cpu" : "human";
+    state.cpu.plan?.cancel?.();
     state.cpu.plan = null;
     state.pointerX = null;
     state.keys.clear();
@@ -1396,6 +1398,7 @@ function nextTurn() {
 
 function lose(cat) {
   if (state.cpu.active) {
+    state.cpu.plan?.cancel?.();
     const didLose = state.cpu.turn === "human";
     state.gameOver = true;
     state.aiming = false;
@@ -1439,6 +1442,7 @@ function showHowTo() {
 
 function showTitle() {
   stopMatchmaking();
+  state.cpu.plan?.cancel?.();
   state.cpu.active = false;
   clearOnlineSession();
   state.matchmakingActive = false;
@@ -1564,13 +1568,27 @@ function updateCamera() {
 function updateLocalCpu(dt) {
   if (!state.cpu.active || state.cpu.turn !== "cpu" || !state.aiming || !state.active) return;
   const now = performance.now();
-  const plan = state.cpu.plan ||= window.NekoTowerCpu.plan(state.cats, state.stage, now);
+  if (!state.cpu.plan) {
+    const base = window.NekoTowerCpu.plan(state.cats, state.stage, now);
+    state.cpu.plan = window.NekoTowerCpu.startSearch(
+      base, Composite.allBodies(physics.engine.world), state.active.body,
+      state.targetCameraY + 150, STAGES[state.stage].failY, physics.engine.gravity,
+    );
+    state.cpu.plan.deadline = now + 5500;
+  }
+  const plan = state.cpu.plan;
   const body = state.active.body;
   const distance = Math.max(-240 * dt, Math.min(240 * dt, plan.x - body.position.x));
   Body.setPosition(body, { x: body.position.x + distance, y: state.targetCameraY + 150 });
   Body.setAngle(body, body.angle + (plan.angle - body.angle) * Math.min(1, dt * 5));
   state.active.aimSpinVelocity = 0;
-  if (now >= plan.dropAt) dropActive("cpu");
+  const searchDone = plan.ready || !plan.cancel || now >= plan.deadline;
+  const positioned = Math.abs(plan.x - body.position.x) < 2 && Math.abs(plan.angle - body.angle) < .02;
+  if (now >= plan.dropAt && searchDone && positioned) {
+    plan.cancel?.();
+    Body.setAngle(body, plan.angle);
+    dropActive("cpu");
+  }
 }
 
 function step(dt) {

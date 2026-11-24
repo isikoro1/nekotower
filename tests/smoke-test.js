@@ -51,7 +51,15 @@ const ctx = new Proxy(
   },
 );
 
+// Repeat the same cats and dimensions so unrelated shape randomness cannot make regressions flaky.
+let randomSeed = 123456789;
+const seededMath = Object.create(Math);
+seededMath.random = () => {
+  randomSeed = (Math.imul(randomSeed, 1664525) + 1013904223) >>> 0;
+  return randomSeed / 4294967296;
+};
 const context = {
+  Math: seededMath,
   console,
   setTimeout,
   clearTimeout,
