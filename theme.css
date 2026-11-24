@@ -305,3 +305,34 @@ button:active {
     transition: none;
   }
 }
+
+/* Waiting controls stay usable above both the board and round-result overlay. */
+.cancel-waiting {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  padding-inline: 18px;
+  font-size: .875rem;
+}
+.cancel-waiting[hidden] { display: none; }
+button:disabled {
+  cursor: default;
+  opacity: .55;
+}
+.play-notice {
+  position: absolute;
+  top: 80px;
+  left: 20px;
+  right: 20px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fffffff0;
+  color: #203b42;
+  font-size: .875rem;
+  z-index: 2;
+  pointer-events: none;
+}
+.play-notice:empty { display: none; }

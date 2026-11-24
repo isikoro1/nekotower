@@ -71,11 +71,21 @@
         });
       return this.initPromise;
     },
+    matchGeneration: 0,
+    cancelMatchmaking() {
+      this.matchGeneration += 1;
+      this.cancelWait?.();
+      this.cancelWait = null;
+    },
     startMatchmaking() {
       if (!this.isEnabled()) {
         return Promise.reject(new Error(this.reason || "Online battle is disabled."));
       }
-      return this.initialize().then((client) => startMatchmaking(client, this));
+      const generation = ++this.matchGeneration;
+      return this.initialize().then((client) => {
+        if (generation !== this.matchGeneration) return { status: "cancelled" };
+        return startMatchmaking(client, this, generation);
+      });
     },
     getMatchmakingSummary() {
       if (!this.isEnabled()) {
@@ -132,7 +142,7 @@
     };
   }
 
-  async function startMatchmaking(client, online) {
+  async function startMatchmaking(client, online, generation) {
     const db = client.database;
     const uid = client.user.uid;
     const {
@@ -151,6 +161,7 @@
     const queueRef = ref(db, "matchmaking/queue");
     const roomsRef = ref(db, "rooms");
     const queueSnapshot = await get(queueRef);
+    if (generation !== online.matchGeneration) return { status: "cancelled" };
     const queue = queueSnapshot.val() || {};
     const waitingPlayers = waitingPlayersFromQueue(queue, now);
 
@@ -218,39 +229,53 @@
       createdAt: now,
       lastSeenAt: now,
     });
+    if (generation !== online.matchGeneration) {
+      await remove(ownQueueRef);
+      return { status: "cancelled" };
+    }
     onDisconnect(ownQueueRef).remove();
 
     return new Promise((resolve) => {
-      const timeoutId = window.setTimeout(() => {
-        unsubscribe();
-        remove(ownQueueRef).catch(() => {});
-        online.match = {
-          status: "timeout",
-          roomId: "",
-          estimatedWaitMs: MATCH_LIMITS.waitTimeoutMs,
-        };
-        resolve(online.match);
-      }, MATCH_LIMITS.waitTimeoutMs);
-
-      const unsubscribe = onValue(ownQueueRef, (snapshot) => {
-        const entry = snapshot.val();
-        if (!entry || entry.status !== "matched" || !entry.roomId) return;
+      let unsubscribe = null;
+      let finished = false;
+      let heartbeatId;
+      const finish = (result) => {
+        if (finished) return;
+        finished = true;
         window.clearTimeout(timeoutId);
-        unsubscribe();
-        online.match = {
-          status: "matched",
-          roomId: entry.roomId,
-          role: "host",
-        };
-        resolve(online.match);
-      });
-
+        window.clearInterval(heartbeatId);
+        unsubscribe?.();
+        if (online.cancelWait === cancel) online.cancelWait = null;
+        online.match = result;
+        resolve(result);
+      };
+      const cancel = () => {
+        remove(ownQueueRef).catch(() => {});
+        finish({ status: "cancelled", roomId: "" });
+      };
+      const timeoutId = window.setTimeout(() => {
+        remove(ownQueueRef).catch(() => {});
+        finish({ status: "timeout", roomId: "", estimatedWaitMs: MATCH_LIMITS.waitTimeoutMs });
+      }, MATCH_LIMITS.waitTimeoutMs);
+      online.cancelWait = cancel;
       online.match = {
-        status: "waiting",
-        roomId: "",
-        queuePosition: waitingPlayers.length + 1,
+        status: "waiting", roomId: "", queuePosition: waitingPlayers.length + 1,
         estimatedWaitMs: estimateWaitMs(waitingPlayers.length + 1),
       };
+      // Keep a five-minute queue entry alive beyond the three-minute stale threshold.
+      heartbeatId = window.setInterval(() => {
+        if (!finished) update(ownQueueRef, { lastSeenAt: Date.now() }).catch(() => {});
+      }, 30000);
+      unsubscribe = onValue(ownQueueRef, (snapshot) => {
+        const entry = snapshot.val();
+        if (entry?.status !== "matched" || !entry.roomId) return;
+        finish({ status: "matched", roomId: entry.roomId, role: "host" });
+      }, () => {
+        remove(ownQueueRef).catch(() => {});
+        finish({ status: "error", roomId: "" });
+      });
+      // Some adapters deliver the initial value synchronously.
+      if (finished) unsubscribe?.();
     });
   }
 

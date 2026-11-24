@@ -13,6 +13,17 @@
 - `curl | bash`、不明な `.exe`、出所不明なCLIを導入しない。
 - FirebaseのDatabase Rulesを緩める変更は、理由と影響を明記してから行う。
 
+## 継続開発の入口
+
+- 現行仕様は`docs/spec.md`、構造は`docs/architecture.md`、検証は`docs/testing.md`。
+- 要望は`docs/requests.md`、共通AI方針は`docs/ai-development-guidelines.md`。
+- 文書全体の入口は`docs/README.md`。作業に必要なファイルから読む。
+- 仕様変更・重要な判断・受入条件をコードと同じコミットで更新する。
+- 既存文書の歴史的記述と現行仕様を混同しない。
+- キャッチコピーを追加しない。コメントは理由・制約を中心にする。
+- CPUは`src/cpu-player.js`、モード遷移は`src/game.js`。CPU戦は端末内で完結する。
+- 待機中CPUはCPUと明示する。切断代行の表示方針とは別扱い。
+
 ## 作業前に読む
 
 - `docs/safety-first-online-plan.md`
@@ -37,4 +48,7 @@
 ```powershell
 node --check src\game.js
 node tests\smoke-test.js
+node tests\cpu-player-test.js
+node tests\matchmaking-lifecycle-test.js
+node tests\online-bootstrap-test.js
 ```

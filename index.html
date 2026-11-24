@@ -14,7 +14,7 @@
     <meta name="twitter:title" content="ねこタワー" />
     <meta name="twitter:description" content="変な形の猫を積む物理パズルゲーム。オンライン対戦で連勝を目指そう。" />
     <link rel="stylesheet" href="./styles.css?v=20260628-share-2" />
-    <link rel="stylesheet" href="./theme.css?v=20261124-1" />
+    <link rel="stylesheet" href="./theme.css?v=20261124-cpu-1" />
   </head>
   <body>
     <main class="app">
@@ -26,6 +26,8 @@
           <span id="hudTurn">Solo</span>
         </div>
 
+        <p id="playNotice" class="play-notice" role="status"></p>
+
         <section class="overlay title-screen" id="titleScreen" aria-label="title screen">
           <h2>ねこタワー</h2>
           <div class="title-menu" id="titleMenu">
@@ -36,12 +38,14 @@
               <button id="stageTowerBtn" type="button">キャットタワー</button>
               <button id="stageBottleBtn" type="button">猫瓶</button>
             </div>
+            <button id="cpuBattleBtn" class="wide-button" type="button">CPU対戦</button>
             <button id="onlineBattleBtn" class="wide-button online-button" type="button">オンライン対戦</button>
             <p id="onlineStatus" class="online-status" aria-live="polite"></p>
             <button id="howToBtn" class="wide-button" type="button">遊び方</button>
           </div>
           <div class="howto-panel" id="howToPanel" hidden>
             <h3>遊び方</h3>
+            <p>CPU対戦は交互に猫を落とし、自分の番で猫が落ちたら負けです。オンラインのマッチ待ち中もCPUと対戦でき、マッチ成立時に切り替わります。</p>
             <p>猫を落として、ステージから落とさずに何匹積めるかを競います。</p>
             <div class="controls-guide">
               <section>
@@ -65,6 +69,8 @@
           </div>
         </section>
 
+        <button id="cancelWaitingBtn" class="cancel-waiting" type="button" hidden>待機をやめる</button>
+
         <section class="overlay game-over-screen" id="gameOverScreen" aria-label="game over" hidden>
           <h2 id="gameOverTitle">GAME OVER</h2>
           <p id="gameOverMessage">終了</p>
@@ -87,7 +93,8 @@
     <script src="./src/cat-contours.js?v=20260621-3"></script>
     <script src="./src/cat-hitboxes.js?v=20260621-3"></script>
     <script src="./src/online/firebase-config.public.js?v=20260628-online-1"></script>
-    <script src="./src/online/online-bootstrap.js?v=20260705-queue-1"></script>
-    <script src="./src/game.js?v=20260705-queue-3"></script>
+    <script src="./src/online/online-bootstrap.js?v=20261124-cpu-1"></script>
+    <script src="./src/cpu-player.js?v=20261124-1"></script>
+    <script src="./src/game.js?v=20261124-cpu-1"></script>
   </body>
 </html>

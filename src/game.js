@@ -1,4 +1,4 @@
-﻿const canvas = document.querySelector("#game");
+const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
 
 const gameHudEl = document.querySelector(".game-hud");
@@ -17,6 +17,11 @@ const stageBowlBtn = document.querySelector("#stageBowlBtn");
 const stagePlatformBtn = document.querySelector("#stagePlatformBtn");
 const stageTowerBtn = document.querySelector("#stageTowerBtn");
 const stageBottleBtn = document.querySelector("#stageBottleBtn");
+const playNoticeEl = document.querySelector("#playNotice");
+const cpuBattleBtn = document.querySelector("#cpuBattleBtn");
+const cancelWaitingBtn = document.querySelector("#cancelWaitingBtn");
+let matchmakingRequest = 0;
+let matchmakingStatusTimer = null;
 const onlineBattleBtn = document.querySelector("#onlineBattleBtn");
 const onlineStatusEl = document.querySelector("#onlineStatus");
 const howToBtn = document.querySelector("#howToBtn");
@@ -97,6 +102,7 @@ const state = {
   stage: "bowl",
   screen: "title",
   gameOver: false,
+  cpu: { active: false, turn: "human", plan: null, notice: "" },
   matchmakingActive: false,
   matchmakingStatusText: "",
   lastDropAt: 0,
@@ -685,6 +691,10 @@ function clearOnlineSession(resetStatus = true) {
 function reset(stage = state.stage, options = {}) {
   if (physics.engine) Events.off(physics.engine);
   if (!options.keepOnline) clearOnlineSession(false);
+  state.cpu = { active: Boolean(options.cpu), turn: "human", plan: null, notice: "" };
+  state.keys.clear();
+  state.pointerX = null;
+  clearResultTone();
   state.stage = stage;
   state.best = getBest(stage);
   buildWorld();
@@ -725,6 +735,13 @@ function resetAimSpin() {
 }
 
 function updateHud() {
+  const cpuTurn = state.cpu.active && state.cpu.turn === "cpu";
+  for (const id of ["#rotLeftBtn", "#rotRightBtn", "#dropBtn"]) {
+    document.querySelector(id).disabled = cpuTurn || state.screen !== "playing" || state.gameOver;
+  }
+  cancelWaitingBtn.hidden = !state.matchmakingActive;
+  playNoticeEl.textContent = state.screen === "title" ? "" : (state.cpu.notice || "");
+
   hudScoreEl.textContent = currentCatNumber();
   hudStreakEl.textContent = state.onlineWinStreak > 0 ? `${state.onlineWinStreak}連勝中` : "連勝 0";
   if (state.online.active) {
@@ -733,8 +750,9 @@ function updateHud() {
     } else {
       hudTurnEl.textContent = state.online.turnUid === state.online.uid ? "あなたの番" : "相手の番";
     }
-  } else if (state.matchmakingActive) {
-    hudTurnEl.textContent = state.matchmakingStatusText || "マッチ待ち";
+  } else if (state.cpu.active) {
+    hudTurnEl.textContent = `${state.matchmakingActive ? "マッチ待ち / " : ""}${cpuTurn ? "CPUの番" : "あなたの番"}`;
+    hudStreakEl.textContent = state.matchmakingActive ? (state.matchmakingStatusText || "相手を探しています") : "CPU対戦";
   } else {
     hudTurnEl.textContent = STAGES[state.stage]?.label || "Stage";
   }
@@ -835,58 +853,64 @@ function updateOnlineEntry() {
   onlineStatusEl.textContent = "オンライン対戦できます";
 }
 
+function startCpuBattle(stage = "bowl") {
+  reset(stage, { cpu: true });
+}
+
+function stopMatchmaking() {
+  matchmakingRequest += 1;
+  window.clearInterval(matchmakingStatusTimer);
+  matchmakingStatusTimer = null;
+  state.matchmakingActive = false;
+  state.matchmakingStatusText = "";
+  window.NekoTowerOnline?.cancelMatchmaking?.();
+}
+
 async function startOnlineBattle() {
   const online = window.NekoTowerOnline;
-  if (!online?.isEnabled?.()) {
-    updateOnlineEntry();
-    return;
-  }
+  if (!online?.isEnabled?.()) { updateOnlineEntry(); return; }
   if (state.matchmakingActive || state.online.active) return;
-  onlineBattleBtn.disabled = true;
-  const summary = await checkOnlineAvailability();
-  onlineBattleBtn.disabled = false;
-  if (state.matchmakingActive || state.online.active) return;
-  reset("bowl");
+  const request = ++matchmakingRequest;
+  // Start local play immediately; network initialization must not block the game.
+  startCpuBattle("bowl");
   state.matchmakingActive = true;
-  state.matchmakingStatusText =
-    summary && Number(summary.waitingCount || 0) > 0 ? `マッチ待ち（待機中 ${summary.waitingCount}人）` : "マッチ待ち（待機中 0人）";
+  state.matchmakingStatusText = "相手を探しています";
   updateHud();
-  onlineStatusEl.textContent =
-    summary && Number(summary.waitingCount || 0) > 0
-      ? `待機中 ${summary.waitingCount}人。対戦相手を探しています`
-      : "待機中 0人。待ちながら遊べます";
-  const statusTimer = window.setInterval(refreshMatchmakingStatus, 1000);
-  online.startMatchmaking().catch(() => {
+  matchmakingStatusTimer = window.setInterval(refreshMatchmakingStatus, 1000);
+  try {
+    const result = await online.startMatchmaking();
+    if (request !== matchmakingRequest) return;
     state.matchmakingActive = false;
     state.matchmakingStatusText = "";
-    window.clearInterval(statusTimer);
-    updateHud();
-    onlineStatusEl.textContent = "オンライン接続に失敗しました";
-  }).then((result) => {
-    if (!result) return;
-    state.matchmakingActive = false;
-    state.matchmakingStatusText = "";
-    window.clearInterval(statusTimer);
-    updateHud();
+    window.clearInterval(matchmakingStatusTimer);
+    matchmakingStatusTimer = null;
     if (result.status === "matched") {
-      startOnlineSession(result).catch(() => {
-        onlineStatusEl.textContent = "オンライン対戦の開始に失敗しました";
-      });
-    } else if (result.status === "waiting") {
-      onlineStatusEl.textContent = onlineWaitingMessage(result);
-    } else if (result.status === "full") {
-      onlineStatusEl.textContent = "ただいま混雑中です。少し待ってください";
-    } else if (result.status === "timeout") {
-      onlineStatusEl.textContent = "マッチングがタイムアウトしました";
+      await startOnlineSession(result);
     } else {
-      onlineStatusEl.textContent = "接続OK。マッチングを確認しました";
+      const messages = {full:"混雑中です", timeout:"マッチ待ちが終了しました", error:"オンライン接続に失敗しました", cancelled:"待機を終了しました"};
+      onlineStatusEl.textContent = (messages[result.status] || "マッチ待ちが終了しました") + "。CPU対戦を続けられます";
+      state.cpu.notice = onlineStatusEl.textContent;
+      updateHud();
     }
-  });
+  } catch {
+    if (request !== matchmakingRequest) return;
+    state.matchmakingActive = false;
+    if (state.online.active) startCpuBattle("bowl");
+    window.clearInterval(matchmakingStatusTimer);
+    matchmakingStatusTimer = null;
+    state.matchmakingStatusText = "";
+    onlineStatusEl.textContent = "オンライン接続に失敗しました。CPU対戦を続けられます";
+    state.cpu.notice = onlineStatusEl.textContent;
+    updateHud();
+  }
 }
 
 async function startOnlineSession(match) {
   const online = window.NekoTowerOnline;
+  const request = matchmakingRequest;
   const client = await online.initialize();
+  if (request !== matchmakingRequest) return;
+  state.cpu.active = false;
   state.online.active = true;
   state.online.roomId = match.roomId;
   state.online.uid = client.user.uid;
@@ -948,6 +972,7 @@ function nextOnlineTurnUid() {
 }
 
 function isOnlineMyTurn() {
+  if (state.cpu.active && state.cpu.turn === "cpu") return false;
   return !state.online.active || state.online.turnUid === state.online.uid;
 }
 
@@ -1334,7 +1359,7 @@ function nextTurn() {
   if (cat && !cat.counted) {
     cat.counted = true;
     state.score += 1;
-    if (state.score > state.best) {
+    if (!state.cpu.active && state.score > state.best) {
       state.best = state.score;
       localStorage.setItem(bestKey(state.stage), String(state.best));
     }
@@ -1359,16 +1384,27 @@ function nextTurn() {
     updateHud();
     return;
   }
+  if (state.cpu.active) {
+    state.cpu.turn = state.cpu.turn === "human" ? "cpu" : "human";
+    state.cpu.plan = null;
+    state.pointerX = null;
+    state.keys.clear();
+  }
   spawn();
   updateHud();
 }
 
 function lose(cat) {
-  if (state.matchmakingActive && !state.online.active) {
-    reset(state.stage);
-    state.matchmakingActive = true;
-    state.matchmakingStatusText ||= "マッチ待ち";
-    onlineStatusEl.textContent = "対戦相手を待っています";
+  if (state.cpu.active) {
+    const didLose = state.cpu.turn === "human";
+    state.gameOver = true;
+    state.aiming = false;
+    state.screen = "gameover";
+    setResultTone(didLose ? "lose" : "win");
+    gameOverTitleEl.textContent = didLose ? "あなたの負け" : "あなたの勝ち";
+    gameOverMessageEl.textContent = `${didLose ? "あなた" : "CPU"}の番で猫が落ちました。${state.matchmakingActive ? "マッチ待ちは継続中です。" : ""}`;
+    updateShareBestStreakButton(false);
+    gameOverScreen.hidden = false;
     updateHud();
     return;
   }
@@ -1402,6 +1438,8 @@ function showHowTo() {
 }
 
 function showTitle() {
+  stopMatchmaking();
+  state.cpu.active = false;
   clearOnlineSession();
   state.matchmakingActive = false;
   state.matchmakingStatusText = "";
@@ -1419,9 +1457,11 @@ function showTitle() {
 
 function retryGame() {
   if (!state.online.active) {
-    state.matchmakingActive = false;
-    state.matchmakingStatusText = "";
-    reset(state.stage);
+    const notice = state.cpu.notice;
+    // Preserve the queue while restarting a local CPU practice round.
+    reset(state.stage, { cpu: state.cpu.active });
+    state.cpu.notice = notice;
+    updateHud();
     return;
   }
   clearOnlineSession(false);
@@ -1442,7 +1482,7 @@ function retryGame() {
 
 function aimActive(dt) {
   if (state.screen !== "playing" || !state.aiming || !state.active) return;
-  if (state.online.active && state.online.turnUid !== state.online.uid) return;
+  if (!isOnlineMyTurn()) return;
   const body = state.active.body;
   const move = (state.keys.has("d") || state.keys.has("D") ? 1 : 0) - (state.keys.has("a") || state.keys.has("A") ? 1 : 0);
   const rot =
@@ -1521,6 +1561,18 @@ function updateCamera() {
   state.cameraY += (state.targetCameraY - state.cameraY) * 0.08;
 }
 
+function updateLocalCpu(dt) {
+  if (!state.cpu.active || state.cpu.turn !== "cpu" || !state.aiming || !state.active) return;
+  const now = performance.now();
+  const plan = state.cpu.plan ||= window.NekoTowerCpu.plan(state.cats, state.stage, now);
+  const body = state.active.body;
+  const distance = Math.max(-240 * dt, Math.min(240 * dt, plan.x - body.position.x));
+  Body.setPosition(body, { x: body.position.x + distance, y: state.targetCameraY + 150 });
+  Body.setAngle(body, body.angle + (plan.angle - body.angle) * Math.min(1, dt * 5));
+  state.active.aimSpinVelocity = 0;
+  if (now >= plan.dropAt) dropActive("cpu");
+}
+
 function step(dt) {
   if (state.screen !== "playing" || state.gameOver) return;
 
@@ -1528,6 +1580,7 @@ function step(dt) {
   updateOnlineTurnTimer(dt);
   if (state.online.active) updateHud();
 
+  updateLocalCpu(dt);
   aimActive(dt);
 
   if (state.online.active && !isOnlineAuthority()) {
@@ -1941,7 +1994,7 @@ canvas.addEventListener("click", (event) => {
 canvas.addEventListener(
   "wheel",
   (event) => {
-    if (!state.aiming || !state.active) return;
+    if (!state.aiming || !state.active || !isOnlineMyTurn()) return;
     event.preventDefault();
     const direction = Math.sign(event.deltaY);
     Body.rotate(state.active.body, direction * 0.16);
@@ -2011,6 +2064,13 @@ stageTowerBtn.addEventListener("click", () => {
 stageBottleBtn.addEventListener("click", () => {
   unlockAudio();
   reset("bottle");
+});
+cpuBattleBtn.addEventListener("click", () => { unlockAudio(); startCpuBattle(); });
+cancelWaitingBtn.addEventListener("click", () => {
+  stopMatchmaking();
+  state.cpu.notice = "待機を終了しました。CPU対戦を続けられます";
+  updateHud();
+  onlineStatusEl.textContent = "待機を終了しました";
 });
 onlineBattleBtn.addEventListener("click", () => {
   unlockAudio();

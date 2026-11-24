@@ -1,3 +1,5 @@
+> 2026-11-24: この文書はオンライン実装初期の記録を含む。現行機能は[仕様](../spec.md)、[構造](../architecture.md)を参照。
+
 # Agent brief for online battle work
 
 このファイルは、Codex、ChatGPT、Claude Code、Geminiなど別のAIに作業を依頼する時の共通ブリーフです。

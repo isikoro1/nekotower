@@ -55,6 +55,8 @@ const context = {
   console,
   setTimeout,
   clearTimeout,
+  setInterval,
+  clearInterval,
   performance: {
     now: () => context.__now,
   },
@@ -126,6 +128,7 @@ context.Audio = class FakeAudio {
 };
 
 vm.createContext(context);
+vm.runInContext(fs.readFileSync(path.join(root, "src", "cpu-player.js"), "utf8"), context);
 vm.runInContext(fs.readFileSync(path.join(root, "src", "cats.js"), "utf8"), context, {
   filename: "cats.js",
 });
@@ -146,6 +149,12 @@ setTimeout(() => {
     physics,
     dropActive,
     reset,
+    nextTurn,
+    lose,
+    startCpuBattle,
+    startOnlineBattle,
+    retryGame,
+    stopMatchmaking,
     showTitle,
     showHowTo,
     showTitleMenu,
@@ -181,7 +190,7 @@ function dropAndSettle() {
   }
 }
 
-setTimeout(() => {
+setTimeout(async () => {
   if (!context.__test) throw new Error("game did not initialize");
   context.__test.showTitle();
   context.__test.showHowTo();
@@ -314,6 +323,61 @@ setTimeout(() => {
   if (context.__test.state.gameOver) {
     throw new Error(`unexpected game over during multi-drop; cats=${context.__test.state.cats.length}; status=${context.__test.getStatus()}`);
   }
+  const game = context.__test;
+  game.startCpuBattle();
+  if (!game.state.cpu.active || game.state.cpu.turn !== "human") throw new Error("CPU mode did not start on human turn");
+  const soloBest = storage.get("cat-bowl-best:bowl");
+  game.nextTurn();
+  if (game.state.cpu.turn !== "cpu") throw new Error("CPU turn did not follow human turn");
+  const cpuCat = game.state.active;
+  game.dropActive();
+  if (cpuCat.dropped) throw new Error("Human dropped CPU cat");
+  for (let frame = 0; frame < 200 && !cpuCat.dropped; frame += 1) advance(1);
+  if (!cpuCat.dropped) throw new Error("CPU did not autonomously drop");
+  if (storage.get("cat-bowl-best:bowl") !== soloBest) throw new Error("CPU round overwrote solo best");
+  game.lose(cpuCat);
+  if (element("gameOverTitle").textContent !== "あなたの勝ち") throw new Error("CPU loss did not award human win");
+  game.retryGame();
+  if (!game.state.cpu.active || game.state.cpu.turn !== "human") throw new Error("CPU retry lost mode");
+  game.lose(game.state.active);
+  if (element("gameOverTitle").textContent !== "あなたの負け") throw new Error("Human loss result incorrect");
+
+  let resolveMatch;
+  let cancellations = 0;
+  context.NekoTowerOnline = {
+    isEnabled: () => true,
+    startMatchmaking: () => new Promise(resolve => { resolveMatch = resolve; }),
+    cancelMatchmaking: () => { cancellations += 1; },
+    initialize: async () => ({ user: { uid: "local" } }),
+    watchRoom: async () => () => {},
+    watchInputs: async () => () => {},
+  };
+  game.showTitle();
+  const waiting = game.startOnlineBattle();
+  if (!game.state.matchmakingActive || !game.state.cpu.active) throw new Error("Queue did not start CPU practice immediately");
+  game.lose(game.state.active);
+  if (!game.state.matchmakingActive) throw new Error("CPU result stopped matchmaking");
+  game.retryGame();
+  if (!game.state.matchmakingActive || !game.state.cpu.active) throw new Error("Retry lost queue");
+  game.showTitle();
+  resolveMatch({ status: "matched", roomId: "late" });
+  await waiting;
+  if (game.state.online.active || game.state.screen !== "title" || !cancellations) throw new Error("Cancelled queue accepted late match");
+
+  const matching = game.startOnlineBattle();
+  resolveMatch({ status: "matched", roomId: "match" });
+  await matching;
+  if (!game.state.online.active || game.state.cpu.active || game.state.matchmakingActive) throw new Error("Match did not replace CPU game");
+  game.showTitle();
+
+  context.NekoTowerOnline.startMatchmaking = async () => ({ status: "timeout" });
+  await game.startOnlineBattle();
+  if (!game.state.cpu.active || game.state.matchmakingActive || !element("playNotice").textContent.includes("終了")) throw new Error("Timeout did not keep CPU game with notice");
+  game.showTitle();
+  context.NekoTowerOnline.startMatchmaking = async () => { throw new Error("network"); };
+  await game.startOnlineBattle();
+  if (!game.state.cpu.active || game.state.matchmakingActive || !element("playNotice").textContent.includes("失敗")) throw new Error("Network failure did not keep CPU game");
+  game.showTitle();
   console.log(
     JSON.stringify({
       ok: true,
