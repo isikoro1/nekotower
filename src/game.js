@@ -1577,6 +1577,11 @@ function updateLocalCpu(dt) {
     state.cpu.plan.deadline = now + 5500;
   }
   const plan = state.cpu.plan;
+  if (!plan.ready && now >= plan.deadline) {
+    // Freeze the best completed result so a slow worker cannot keep changing the target.
+    plan.cancel?.();
+    plan.ready = true;
+  }
   const body = state.active.body;
   const distance = Math.max(-240 * dt, Math.min(240 * dt, plan.x - body.position.x));
   Body.setPosition(body, { x: body.position.x + distance, y: state.targetCameraY + 150 });

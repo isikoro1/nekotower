@@ -10,6 +10,7 @@ node tests/smoke-test.js
 node tests/online-bootstrap-test.js
 node tests/cpu-player-test.js
 node tests/cpu-search-test.js
+node tests/cpu-strength-test.js
 node tests/matchmaking-lifecycle-test.js
 ```
 
@@ -43,3 +44,15 @@ CPU探索テストで、平台を外す手より安全な位置・横向きを�
 複合形状の複製、実盤面と共有スナップショットの不変性、Worker入口の動作を確認する。
 旧スモークテストは猫・サイズの乱数を固定し、無関係なランダム失敗を再現可能にした。
 ブラウザでCPUが自動で置き、人間の3匹目へ進むことを確認した。勝率の比較測定は未実施。
+
+## 2026-11-26 CPU探索の比較
+
+`cpu-strength-test.js`は旧版の固定候補と新版を同一物理条件で比較する。
+中央・右端寄り・左端寄りの3つの固定盤面を用意。旧版は1/3、新版は3/3で
+安全な手を発見した（端の足場は旧版の探索範囲外）。
+これは探索漏れの回帰テストで、人間相手の勝率や全ての猫での性能を示すものではない。
+`cpu-search-test.js`は上位候補の誤差検証まで完了することも確認する。
+
+強化時のsmoke-testでは、実際の探索処理と複製Matterワールドを使ったWorker代替を
+ゲーム本体へ接続し、探索結果の反映・位置合わせ・CPU自動落下を検証する。
+ブラウザでの開始画面と落下操作は確認したが、この検証環境での一巡完了は未確認。

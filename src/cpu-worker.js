@@ -1,5 +1,5 @@
 /* Keep physics lookahead off the rendering thread, especially on mobile. */
-importScripts('../vendor/matter.min.js', './cpu-player.js?v=20261124-search-1');
+importScripts('../vendor/matter.min.js', './cpu-player.js?v=20261126-search-2');
 self.onmessage = ({ data }) => {
   const search = self.NekoTowerCpu.createSearch(data, self.Matter);
   const deadline = performance.now() + 4200;

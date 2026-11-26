@@ -332,12 +332,33 @@ setTimeout(async () => {
     throw new Error(`unexpected game over during multi-drop; cats=${context.__test.state.cats.length}; status=${context.__test.getStatus()}`);
   }
   const game = context.__test;
+  // Exercise the Worker-to-game boundary with the real planner and cloned Matter bodies.
+  const planner = require(path.join(root, "src", "cpu-player.js"));
+  let searchReplies = 0;
+  context.Worker = class PlannerWorker {
+    postMessage(snapshot) {
+      setImmediate(() => {
+        const search = planner.createSearch(snapshot, Matter);
+        let result;
+        while ((result = search.next())) {
+          if (this.terminated) return;
+          this.onmessage?.({ data: result });
+          searchReplies += 1;
+          if (result.done) break;
+        }
+      });
+    }
+    terminate() { this.terminated = true; }
+  };
   game.startCpuBattle();
   if (!game.state.cpu.active || game.state.cpu.turn !== "human") throw new Error("CPU mode did not start on human turn");
   const soloBest = storage.get("cat-bowl-best:bowl");
   game.nextTurn();
   if (game.state.cpu.turn !== "cpu") throw new Error("CPU turn did not follow human turn");
   const cpuCat = game.state.active;
+  advance(1);
+  await new Promise(resolve => setImmediate(resolve));
+  if (!searchReplies || !game.state.cpu.plan.ready) throw new Error("CPU search results did not reach game");
   game.dropActive();
   if (cpuCat.dropped) throw new Error("Human dropped CPU cat");
   for (let frame = 0; frame < 200 && !cpuCat.dropped; frame += 1) advance(1);

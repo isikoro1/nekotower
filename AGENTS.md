@@ -50,6 +50,7 @@ node --check src\game.js
 node tests\smoke-test.js
 node tests\cpu-player-test.js
 node tests\cpu-search-test.js
+node tests\cpu-strength-test.js
 node tests\matchmaking-lifecycle-test.js
 node tests\online-bootstrap-test.js
 ```

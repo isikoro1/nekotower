@@ -18,7 +18,8 @@ const start=performance.now();
 while(search.index<search.total)last=search.next();
 assert.ok(last.done);
 assert.equal(last.best.failed,false);
-assert.ok(last.best.score>=safe.score-1e-6);
+assert.ok(Cpu.evaluate(snapshot,last.best,Matter).score>=safe.score-1e-6);
+assert.equal(last.best.robust,true);
 assert.equal(JSON.stringify(snapshot),beforeSnapshot,'Candidate trials mutated shared snapshot');
 assert.equal(JSON.stringify([Cpu.describe(platform),Cpu.describe(active)]),original,'Planner mutated real bodies');
 // Compound hitboxes must also survive cloning and remain detached from live parts.
@@ -50,3 +51,24 @@ assert.equal(messages.at(-1).done,true);
 assert.equal(messages.at(-1).best.failed,false);
 assert.equal(closed,true);
 console.log('CPU worker entry point passed');
+// Cancelling a search also detaches queued message handlers, so a timed-out target stays frozen.
+const previousWorker = global.Worker;
+let testWorker;
+global.Worker = class {
+  constructor() { testWorker = this; }
+  postMessage() {}
+  terminate() { this.terminated = true; }
+};
+try {
+  const move = Cpu.startSearch({x:450,angle:0},[platform,active],active,150,1260,snapshot.gravity);
+  testWorker.onmessage({data:{best:{x:460,angle:.2},evaluated:4,done:false}});
+  assert.equal(move.x,460);
+  move.cancel();
+  assert.equal(testWorker.onmessage,null);
+  assert.equal(testWorker.onerror,null);
+  assert.equal(testWorker.terminated,true);
+} finally {
+  if(previousWorker === undefined)delete global.Worker;
+  else global.Worker=previousWorker;
+}
+console.log('CPU cancellation test passed');
